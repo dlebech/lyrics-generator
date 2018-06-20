@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Lyric Generator</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+    <link rel="stylesheet" href="spin.css">
+  </head>
+  <body>
+    <div class="container">
+      <div class="row justify-content-center mt-3">
+        <div class="col text-center">
+          <h1 class="display-3">Lyrics Generator</h1>
+        </div>
+      </div>
+      <div id="intro-section" class="row justify-content-center">
+        <div class="col col-lg-6 text-justify">
+          <p>
+            This experiment loads a neural network in your browser that can
+            generate lyrics-like texts.
+          </p>
+          <p>
+            The processing required for this is pretty heavy, so your browser
+            might freeze for a few seconds while loading the network. I'm not
+            sure how it works on phones, but feel free to try it :-)
+          </p>
+          <button id="load-button" type="button" class="btn btn-primary btn-lg btn-block">Ok, load the network!</button>
+        </div>
+      </div>
+      <div id="main-section" class="row justify-content-center" style="display:none;">
+        <div class="col col-lg-6">
+          <div id="loader">
+            <div class="alert alert-info d-flex justify-content-center align-items-center">
+              <div class="lds-ellipsis mr-1"><div></div><div></div><div></div><div></div></div>
+              <div class="lead" id="status">Loading...</div>
+            </div>
+            <p class="text-center">
+              ... This could take a while, depending on your connection and CPU
+              power. It shouldn't take more than 30 seconds though...
+            </p>
+          </div>
+          <form id="lyrics-form" style="display:none;">
+            <p class="lead text-center">Type some text below to generate new lyrics.</p>
+            <div class="form-group">
+              <textarea id="text-seed" class="form-control" placeholder="Type some text or let it be empty" rows="4"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="text-length">
+                Maximum length of text (in characters):
+              </label>
+              <input
+                id="text-length"
+                type="number"
+                class="form-control"
+                value="100"
+                min="20"
+                max="500">
+            </div>
+            <div class="form-group">
+              <label for="randomness">
+                Amount of randomness:
+              </label>
+              <div class="form-row align-items-center">
+                <div class="col">
+                  <input
+                    id="randomness"
+                    type="range"
+                    class="form-control-range"
+                    value="0.3"
+                    min="0"
+                    max="2"
+                    step="0.1">
+                </div>
+                <div class="col-auto">
+                  <span id="randomness-value">0.3</span>
+                </div>
+              </div>
+              <small>
+                A value of 0 means that the network will always take the most
+                probable next word, which can be kind of boring. A little bit
+                of randomness can help make the lyrics more different and
+                interesting. Too much randomness, however, and the sentences become
+                completely non-sensical.
+              </small>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Create Lyrics!</button>
+          </form>
+        </div>
+      </div>
+      <div class="row justify-content-center mt-4">
+        <div class="col col-lg-6">
+          <div id="generate-loader" style="display:none;">
+            <div class="alert alert-info d-flex justify-content-center align-items-center">
+              <div class="lds-ellipsis mr-1"><div></div><div></div><div></div><div></div></div>
+              <div id="generate-status"></div>
+            </div>
+          </div>
+          <pre id="output"></pre>
+        </div>
+      </div>
+      <hr>
+      <div class="row justify-content-center">
+        <div class="col col-lg-6 text-justify">
+          <p class="small">
+            This experiment uses <a href="https://js.tensorflow.org">Tensorflow.js</a>
+            with a model exported from the Python version of Tensorflow. Check out the
+            <a href="https://github.com/dlebech/lyrics-generator">code on GitHub</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.11.6"></script>
+    <script>
+      // Hack to make the discrete library work :)
+      if (typeof window.exports === 'undefined') {
+        window.exports = {};
+      }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/discrete-sampling@1.0.3/discrete.min.js"></script>
+    <script src="lyrics.js"></script>
+  </body>
+</html>

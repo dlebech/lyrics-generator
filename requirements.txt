@@ -1,0 +1,7 @@
+h5py==2.7.1
+numpy==1.14.1
+pandas==0.23.1
+scikit-learn==0.19.1
+scipy==1.1.0
+tensorflow==1.9.0rc1
+tensorflowjs==0.4.1
