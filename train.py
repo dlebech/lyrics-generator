@@ -189,19 +189,19 @@ if __name__ == '__main__':
     songs, glove_mapping = load_data()
     X, y, seq_length, num_words, tokenizer = prepare_data(songs, glove_mapping)
 
-    # Make sure tokenizer is pickled, in case we need to 
+    # Make sure tokenizer is pickled, in case we need to
     pickle_tokenizer(tokenizer)
 
-    #embedding_matrix = create_embedding_matrix(tokenizer, glove_mapping)
+    embedding_matrix = create_embedding_matrix(tokenizer, glove_mapping)
 
-    #model = create_model(seq_length, num_words, embedding_matrix)
+    model = create_model(seq_length, num_words, embedding_matrix)
 
-    ## Run the training
-    #model.fit(np.array(X),
-    #          np.array(y),
-    #          batch_size=256,
-    #          epochs=100,
-    #          callbacks=[
-    #              tf.keras.callbacks.EarlyStopping(monitor='loss', patience=10, verbose=1),
-    #              tf.keras.callbacks.ModelCheckpoint('model.h5', monitor='loss', save_best_only=True, verbose=1)
-    #          ])
+    # Run the training
+    model.fit(np.array(X),
+              np.array(y),
+              batch_size=256,
+              epochs=100,
+              callbacks=[
+                  tf.keras.callbacks.EarlyStopping(monitor='loss', patience=10, verbose=1),
+                  tf.keras.callbacks.ModelCheckpoint('model.h5', monitor='loss', save_best_only=True, verbose=1)
+              ])
