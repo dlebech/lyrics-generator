@@ -31,61 +31,6 @@
         obj[index] = word;
         return obj;
       }, {});
-
-      logger('Setting up Tensorflow network...');
-
-      // Re-construct the network manually.
-      // This is a hack because dropout and recurrent dropout has not been
-      // implemented for GRU cells yet :-(
-      // ... and I couldn't find a better way for now :-(
-      const input = tf.layers.input({
-        batchShape: this.model.getLayer('input_1').getConfig().batchInputShape,
-      });
-      const emb = tf.layers.embedding({
-        inputDim: this.model.getLayer('embedding_1').getConfig().inputDim,
-        outputDim: this.model.getLayer('embedding_1').getConfig().outputDim,
-        maskZero: this.model.getLayer('embedding_1').getConfig().maskZero,
-        inputLength: this.model.getLayer('embedding_1').getConfig().inputLength,
-        weights: this.model.getLayer('embedding_1').getWeights()
-      });
-      const gru1 = tf.layers.gru({
-        units: this.model.getLayer('gru_1').getConfig().units,
-        returnSequences: this.model.getLayer('gru_1').getConfig().returnSequences,
-        weights: this.model.getLayer('gru_1').getWeights()
-      });
-      const gru2 = tf.layers.gru({
-        units: this.model.getLayer('gru_2').getConfig().units,
-        returnSequences: this.model.getLayer('gru_2').getConfig().returnSequences,
-        weights: this.model.getLayer('gru_2').getWeights()
-      });
-      const dense1 = tf.layers.dense({
-        units: this.model.getLayer('dense_1').getConfig().units,
-        activation: this.model.getLayer('dense_1').getConfig().activation,
-        weights: this.model.getLayer('dense_1').getWeights()
-      });
-      const dropout = tf.layers.dropout({
-        rate: this.model.getLayer('dropout_1').getConfig().rate
-      });
-      const dense2 = tf.layers.dense({
-        units: this.model.getLayer('dense_2').getConfig().units,
-        activation: this.model.getLayer('dense_2').getConfig().activation,
-        weights: this.model.getLayer('dense_2').getWeights()
-      });
-
-      logger('Preparing Tensorflow model...');
-      const output = dense2.apply(
-        dropout.apply(
-          dense1.apply(
-            gru2.apply(
-              gru1.apply(
-                emb.apply(input)
-              )
-            )
-          )
-        )
-      );
-
-      this.newModel = tf.model({ inputs: input, outputs: output });
     }
 
     cleanText(text) {
@@ -130,8 +75,7 @@
         const paddedTensor = this.padVector(tokenVector, 14).reshape([1, 14]); // TODO
         if (this.debug) paddedTensor.print();
 
-        // TODO: Use loaded model instead.
-        const prediction = await this.newModel.predict(paddedTensor);
+        const prediction = await this.model.predict(paddedTensor);
         if (this.debug) prediction.print()
 
         // The prediction is a 2D of potentially multiple predictions.
