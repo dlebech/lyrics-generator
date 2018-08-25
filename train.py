@@ -1,6 +1,7 @@
 """Train a song generating model."""
 import csv
 import datetime
+import os
 import pickle
 import statistics
 
@@ -11,6 +12,8 @@ import tensorflow as tf
 
 EMBEDDING_DIM = 50
 MAX_NUM_WORDS = 20000
+SONGDATA_FILE = './data/songdata.csv'
+EMBEDDING_FILE = './data/glove.6B.{}d.txt'.format(EMBEDDING_DIM)
 
 # Sample rock artists (this was based on a random top 20 I found online)
 # Artists are confirmed to exist in the dataset
@@ -38,26 +41,26 @@ artists = [
 ]
 
 
-def pickle_tokenizer(tokenizer):
-    with open('tokenizer.pickle', 'wb') as handle:
+def pickle_tokenizer(tokenizer, export_dir):
+    with open('{}/tokenizer.pickle'.format(export_dir), 'wb') as handle:
         pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def load_data():
-    # Load data
-    print('Loading song data')
-    songdata = pd.read_csv('./data/songdata.csv')
+def load_data(songdata_file=SONGDATA_FILE, embedding_file=EMBEDDING_FILE):
+    print('Loading song data from {}'.format(songdata_file))
+    songdata = pd.read_csv(songdata_file)
+
     print('Loading glove embeddings')
-    glove = pd.read_table('./data/glove.6B.{}d.txt'.format(EMBEDDING_DIM),
-                          sep=' ',
-                          index_col=0,
-                          header=None,
-                          quoting=csv.QUOTE_NONE)
+    glove = pd.read_table(EMBEDDING_FILE, sep=' ', index_col=0, header=None, quoting=csv.QUOTE_NONE)
     glove_mapping = {}
+
     print('Creating glove mappings for faster lookup')
     for row in glove.itertuples():
         glove_mapping[row[0]] = list(row[1:])
+
+    # Find all songs from the selected artists
     songs = songdata[songdata.artist.isin(artists)].text
+
     print('Will use {} songs from {} artists'.format(len(songs), len(artists)))
     return songs, glove_mapping
 
@@ -186,11 +189,14 @@ def create_model(seq_length, num_words, embedding_matrix):
 
 
 if __name__ == '__main__':
+    export_dir = './export/{}'.format(datetime.datetime.now().isoformat(timespec='seconds'))
+    os.makedirs(export_dir, exist_ok=True)
+
     songs, glove_mapping = load_data()
     X, y, seq_length, num_words, tokenizer = prepare_data(songs, glove_mapping)
 
     # Make sure tokenizer is pickled, in case we need to
-    pickle_tokenizer(tokenizer)
+    pickle_tokenizer(tokenizer, export_dir)
 
     embedding_matrix = create_embedding_matrix(tokenizer, glove_mapping)
 
@@ -203,5 +209,9 @@ if __name__ == '__main__':
               epochs=100,
               callbacks=[
                   tf.keras.callbacks.EarlyStopping(monitor='loss', patience=10, verbose=1),
-                  tf.keras.callbacks.ModelCheckpoint('model.h5', monitor='loss', save_best_only=True, verbose=1)
+                  tf.keras.callbacks.ModelCheckpoint(
+                      '{}/model.h5'.format(export_dir),
+                      monitor='loss',
+                      save_best_only=True,
+                      verbose=1)
               ])
