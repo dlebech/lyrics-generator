@@ -8,6 +8,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflowjs as tfjs
 
+from lyrics import util
+
 
 def softmax_sampling(probabilities, randomness):
     """Returns the index of the highest value from a softmax vector,
@@ -47,8 +49,7 @@ def generate_lyrics(model, tokenizer, text_seed, song_length, randomness=0):
 def lyrics(args):
     model = tf.keras.models.load_model(args.model)
 
-    with open(args.tokenizer, 'rb') as handle:
-        tokenizer = pickle.load(handle)
+    tokenizer = util.load_tokenizer(args.tokenizer)
 
     raw, text = generate_lyrics(model, tokenizer, args.text, args.length, args.randomness)
     if args.print_raw:
@@ -67,6 +68,7 @@ def export(args):
             f.write(json.dumps(tokenizer.word_index))
 
     tfjs.converters.save_keras_model(model, './export')
+
 
 def cli():
     parser = argparse.ArgumentParser()

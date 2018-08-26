@@ -1,7 +1,8 @@
-h5py==2.7.1
+h5py==2.8.0
 numpy==1.14.1
 pandas==0.23.1
 scikit-learn==0.19.1
 scipy==1.1.0
-tensorflow==1.9.0rc1
-tensorflowjs==0.4.1
+tensorflow==1.9.0
+tensorflowjs==0.5.7
+gensim==3.5.0
