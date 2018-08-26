@@ -22,7 +22,6 @@ def load_tokenizer(tokenizer_path):
 def load_songdata(songdata_file=config.SONGDATA_FILE, artists=config.ARTISTS):
     print('Loading song data from {}'.format(songdata_file))
     songdata = pd.read_csv(songdata_file).iloc[0:5]
-    artists = None
 
     # Find all songs from the selected artists
     if artists:
