@@ -15,6 +15,21 @@ def embedding_mapping():
     }
 
 
+def test_create_word2vec(export_dir, songfile):
+    w2v = embedding.create_word2vec(
+        export_dir, # Use export directory fixture as data directory. It's ok :-)
+        songdata_file=songfile,
+        artists=None,
+        embedding_dim=5)
+
+    # It excludes newlines for this example
+    assert len(w2v.wv.vocab) == 3
+    assert len(w2v.wv['woof']) == 5
+
+    with open(export_dir + '/word2vec.txt') as f:
+        print(f.read())
+
+
 def test_create_embedding_mappings(embedding_file):
     """It should create a dictionary of embedding mappings."""
     embedding_mapping = embedding.create_embedding_mappings(embedding_file=embedding_file)

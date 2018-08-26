@@ -148,3 +148,5 @@ def train(epochs=100,
 
 if __name__ == '__main__':
     train()
+    # with word2vec embedding:
+    # train(embedding_file='./data/word2vec.txt')
