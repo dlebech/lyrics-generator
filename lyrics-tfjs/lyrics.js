@@ -81,7 +81,12 @@
         // The prediction is a 2D of potentially multiple predictions.
         // Squeeze removes one of the dimensions to make it nicer to work with :-)
         const index = await softmaxSample(prediction.squeeze(), randomness);
-        const word = this.reverseWords[index[0]];
+        let word = this.reverseWords[index[0]];
+        if (!word) {
+          console.log('Found empty word, curious');
+          // Avoid printing "undefined"
+          word = '';
+        }
         textOutput += ' ' + word;
       }
 
