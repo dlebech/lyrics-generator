@@ -1,3 +1,4 @@
+-r requirements_full.txt
 h5py==2.8.0
 numpy==1.14.1
 pandas==0.23.1
@@ -6,6 +7,3 @@ scipy==1.1.0
 tensorflow==1.9.0
 tensorflowjs==0.5.7
 gensim==3.5.0
-boto==2.49.0
-boto3==1.8.1
-botocore==1.11.1
