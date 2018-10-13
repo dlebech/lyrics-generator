@@ -6,3 +6,4 @@ scipy==1.1.0
 tensorflow==1.9.0
 tensorflowjs==0.5.7
 gensim==3.6.0
+google-compute-engine==2.8.3
