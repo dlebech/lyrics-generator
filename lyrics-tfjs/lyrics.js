@@ -1,5 +1,11 @@
 // I should probably have used create react app for this... oh well :-)
 ((tf, SJS) => {
+  const sleep = ms => {
+    return new Promise(resolve => {
+      setTimeout(resolve, ms);
+    });
+  };
+
   const softmaxSample = async (t, randomness) => {
     if (randomness === 0) return t.argMax().data();
 
@@ -10,13 +16,17 @@
     return tf.tensor(draw).argMax().data();
   };
 
-  const generateLogger = elementId => {
+  const createElementLogger = elementId => {
     return txt => {
       document.getElementById(elementId).textContent = txt;
     };
   };
 
   class LyricsGenerator {
+    constructor() {
+      // this.debug = true;
+    }
+
     async prepareGenerator(logger) {
       logger('Loading Tensorflow model...');
       this.model = await tf.loadModel('data/model.json');
@@ -61,12 +71,14 @@
       return t.pad([[length - t.shape[0], 0]]);
     }
 
-    async createLyric(textSeed, textLength, randomness) {
+    async createLyric(textSeed, textLength, randomness, logger) {
       randomness = parseFloat(randomness);
       if (!this.words || !this.model) return '';
 
       let textOutput = textSeed;
       console.log(`Generating lyric from "${textSeed}" with randomness ${randomness}...`);
+
+      let lastLog = new Date();
 
       while (textOutput.length < textLength) {
         const tokenVector = this.textToVec(textOutput);
@@ -88,6 +100,13 @@
           word = '';
         }
         textOutput += ' ' + word;
+
+        // Log the progress every 3 seconds
+        if ((new Date() - lastLog) >= 3000) {
+          logger(`${textOutput.length} / ${textLength} characters created...`);
+          lastLog = new Date();
+          await sleep(100);
+        }
       }
 
       return textOutput;
@@ -115,7 +134,12 @@
       // Wrap the lyrics call in a timeout to avoid block the UI while the loader is being shown.
       // Yes, this happens.
       setTimeout(() => {
-        generator.createLyric(textSeed.value, textLength.value, randomness.value)
+        generator.createLyric(
+          textSeed.value,
+          textLength.value,
+          randomness.value,
+          createElementLogger('generate-status')
+        )
           .then(text => output.textContent = text)
           .then(() => generateLoader.style.display = 'none');
       }, 50);
@@ -136,7 +160,7 @@
       document.getElementById('main-section').style.display = '';
       setTimeout(() => {
         const generator = new LyricsGenerator();
-        generator.prepareGenerator(generateLogger('status'))
+        generator.prepareGenerator(createElementLogger('status'))
           .then(() => prepareForm(generator));
       }, 50);
     };
