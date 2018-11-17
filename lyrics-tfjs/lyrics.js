@@ -76,6 +76,8 @@
       if (!this.words || !this.model) return '';
 
       let textOutput = textSeed;
+      logger('Creating lyrics...');
+      await sleep(20);
       console.log(`Generating lyric from "${textSeed}" with randomness ${randomness}...`);
 
       let lastLog = new Date();
