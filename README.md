@@ -40,16 +40,21 @@ Perhaps there will be a proper CLI command for this in the future, perhaps not :
 ### Run the training
 
 ```shell
-python -m lyrics.train
+python -m lyrics.train -h
 ```
 
-This command takes care of all the training. Warning: it takes a very long
-time on a normal CPU!
+This command by default takes care of all the training. Warning: it takes a
+very long time on a normal CPU!
 
-If you want to use a different embedding than the glove embedding, you currently
-need to change this in `lyrics/train.py`
+Check `-h` for options. For example, if you want to use a different embedding
+than the glove embedding:
 
-Perhaps there will be CLI parameters for training in the future, perhaps not :-)
+```shell
+python -m lyrics.train --embedding-file ./embeddings.txt
+```
+
+The embeddings are still assumed to be 50 dimensional.
+
 
 ## Create new lyrics
 

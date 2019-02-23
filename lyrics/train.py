@@ -1,4 +1,5 @@
 """Train a song generating model."""
+import argparse
 import csv
 import datetime
 import os
@@ -11,8 +12,8 @@ import tensorflow as tf
 from . import config, embedding, util
 
 
-def prepare_data(songs, glove_mapping):
-    songs = util.prepare_songs(songs)
+def prepare_data(songs, transform_words=False):
+    songs = util.prepare_songs(songs, transform_words=transform_words)
     tokenizer = util.prepare_tokenizer(songs)
 
     num_words = min(config.MAX_NUM_WORDS, len(tokenizer.word_index))
@@ -109,7 +110,8 @@ def train(epochs=100,
           songdata_file=config.SONGDATA_FILE,
           artists=config.ARTISTS,
           embedding_file=config.EMBEDDING_FILE,
-          embedding_dim=config.EMBEDDING_DIM):
+          embedding_dim=config.EMBEDDING_DIM,
+          transform_words=False):
     if export_dir is None:
         export_dir = './export/{}'.format(datetime.datetime.now().isoformat(timespec='seconds'))
         os.makedirs(export_dir, exist_ok=True)
@@ -118,7 +120,9 @@ def train(epochs=100,
     songs = util.load_songdata(songdata_file=songdata_file, artists=artists)
     print('Will use {} songs from {} artists'.format(len(songs), len(artists)))
     
-    X, y, seq_length, num_words, tokenizer = prepare_data(songs, embedding_mapping)
+    X, y, seq_length, num_words, tokenizer = prepare_data(
+        songs,
+        transform_words=transform_words)
 
     # Make sure tokenizer is pickled, in case we need to
     util.pickle_tokenizer(tokenizer, export_dir)
@@ -147,6 +151,17 @@ def train(epochs=100,
 
 
 if __name__ == '__main__':
-    train()
-    # with word2vec embedding:
-    # train(embedding_file='./data/word2vec.txt')
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--embedding-file',
+        default=config.EMBEDDING_FILE,
+        help='Use a custom embedding file')
+    parser.add_argument(
+        '--transform-words',
+        action='store_true',
+        help="""
+            To clean the song texts a little bit more than normal by e.g.
+            transforming certain words like runnin' to running.
+        """)
+    args = parser.parse_args()
+    train(embedding_file=args.embedding_file, transform_words=args.transform_words)

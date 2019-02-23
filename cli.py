@@ -6,7 +6,6 @@ import pickle
 
 import numpy as np
 import tensorflow as tf
-import tensorflowjs as tfjs
 
 from lyrics import util
 
@@ -58,6 +57,7 @@ def lyrics(args):
 
 
 def export(args):
+    import tensorflowjs as tfjs
     model = tf.keras.models.load_model(args.model)
 
     os.makedirs('./export', exist_ok=True)

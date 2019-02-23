@@ -2,11 +2,28 @@
 import csv
 import datetime
 import pickle
+import re
 
 import pandas as pd
 import tensorflow as tf
 
 from . import config
+
+
+ing_matcher = re.compile(r"(\win)'(?!\w)(\s)?")
+
+# Map a bunch of words to their shorter form so they will be treated as a
+# single token. They need to be sorted such that they don't conflict with each
+# other.
+sorted_word_pairs = [
+    # Make sure to not catch edge cases such as the island
+    (re.compile(r'(?<!\w)he is'), 'he\'s'),
+    ('she is', 'she\'s'),
+
+    ('cannot', 'can\'t'),
+    ('they are', 'they\'re'),
+    ('we are', 'we\'re')
+]
 
 
 def pickle_tokenizer(tokenizer, export_dir):
@@ -30,15 +47,31 @@ def load_songdata(songdata_file=config.SONGDATA_FILE, artists=config.ARTISTS):
     return songdata.text.values
 
 
-def prepare_songs(songs):
+def _clean_song(song, transform_words=False):
+    song = song.lower().strip('\n').replace('\n', ' \n ')
+    if not transform_words:
+        return song
+
+    song = ing_matcher.sub(r'\1g\2', song)
+    for pair in sorted_word_pairs:
+        # Long to short
+        song = re.sub(pair[0], pair[1], song)
+    return song
+
+
+def prepare_songs(songs, transform_words=False):
     """Do pre-cleaning of all songs in the given array."""
     # Put whitespace around each newline character so something like \nhello is
     # not treated as a word but newline characters are still preserved by
     # themselves
+    # Also fix endings with in' by adding a g. This reduces the vocabulary size.
     print('Preparing proper newlines')
+    if transform_words:
+        print('... also transforming words')
     now = datetime.datetime.now()
-    songs = [song.strip('\n').replace('\n', ' \n ') for song in songs]
+    songs = [_clean_song(song, transform_words=transform_words) for song in songs]
     print('Took {}'.format(datetime.datetime.now() - now))
+
     return songs
 
 
