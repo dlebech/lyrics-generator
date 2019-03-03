@@ -53,11 +53,11 @@ def create_word2vec(data_dir='./data',
 def create_embedding_mappings(embedding_file=config.EMBEDDING_FILE):
     """Create a lookup dictionary for word embeddings from the given embeddings file."""
     print('Loading embedding mapping file {}'.format(embedding_file))
-    glove = pd.read_table(embedding_file, sep=' ', index_col=0, header=None, quoting=csv.QUOTE_NONE)
+    embedding = pd.read_table(embedding_file, sep=' ', index_col=0, header=None, quoting=csv.QUOTE_NONE)
     mapping = {}
 
     print('Creating embedding mappings for faster lookup')
-    for row in glove.itertuples():
+    for row in embedding.itertuples():
         mapping[row[0]] = list(row[1:])
 
     return mapping

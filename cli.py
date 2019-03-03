@@ -50,6 +50,8 @@ def lyrics(args):
 
     tokenizer = util.load_tokenizer(args.tokenizer)
 
+    print('Generating lyrics from "{}..."'.format(args.text))
+
     raw, text = generate_lyrics(model, tokenizer, args.text, args.length, args.randomness)
     if args.print_raw:
         print(raw)
