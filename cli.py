@@ -62,14 +62,14 @@ def export(args):
     import tensorflowjs as tfjs
     model = tf.keras.models.load_model(args.model)
 
-    os.makedirs('./export', exist_ok=True)
+    os.makedirs('./export/js', exist_ok=True)
 
     with open(args.tokenizer, 'rb') as handle:
         tokenizer = pickle.load(handle)
-        with open('./export/words.json', 'w') as f:
+        with open('./export/js/words.json', 'w') as f:
             f.write(json.dumps(tokenizer.word_index))
 
-    tfjs.converters.save_keras_model(model, './export')
+    tfjs.converters.save_keras_model(model, './export/js')
 
 
 def cli():

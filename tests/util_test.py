@@ -13,33 +13,33 @@ from lyrics import util
 
 def test_pickle_load_tokenizer(export_dir, songs):
     """It should pickle and unpickle a tokenizer."""
-    tokenizer = tf.keras.preprocessing.text.Tokenizer() 
+    tokenizer = tf.keras.preprocessing.text.Tokenizer()
     tokenizer.fit_on_texts(songs)
     util.pickle_tokenizer(tokenizer, export_dir)
-    tokenizer = util.load_tokenizer('{}/tokenizer.pickle'.format(export_dir))
-    assert 'woof' in tokenizer.word_index
+    tokenizer = util.load_tokenizer("{}/tokenizer.pickle".format(export_dir))
+    assert "woof" in tokenizer.word_index
 
 
 def test_load_songdata(songfile):
     """It should return an array of songs."""
-    songs = util.load_songdata(songdata_file=songfile, artists=['cat', 'dog'])
+    songs = util.load_songdata(songdata_file=songfile, artists=["cat", "dog"])
     assert len(songs) == 2
-    assert songs[0] == '\nmeow\nmeow'
-    assert songs[1] == 'woof\n\nchorus\nwoof\n'
+    assert songs[0] == "\nmeow\nmeow"
+    assert songs[1] == "woof\n\nchorus\nwoof\n"
 
 
 def test_load_songdata_limit_artists(songfile):
     """It should only return the requested artists."""
-    songs = util.load_songdata(songdata_file=songfile, artists=['dog'])
+    songs = util.load_songdata(songdata_file=songfile, artists=["dog"])
     assert len(songs) == 1
-    assert songs[0] == 'woof\n\nchorus\nwoof\n'
+    assert songs[0] == "woof\n\nchorus\nwoof\n"
 
 
 def test_prepare_songs(songs_raw):
     """It should strip newlines at beginning and end but preserve newlines in the middle."""
     songs = util.prepare_songs(songs_raw)
-    assert songs[0] == 'meow \n meow'
-    assert songs[1] == 'woof \n  \n chorus \n woof'
+    assert songs[0] == "meow \n meow"
+    assert songs[1] == "woof \n  \n chorus \n woof"
 
 
 def test_prepare_songs_transform_words():
@@ -52,34 +52,29 @@ def test_prepare_songs_transform_words():
         "I cannot listen to what they are singin'",
         "The island we are on is nice",
         "I ain't havin' this ain't",
-        "Ain't!"
+        "Ain't!",
     ]
     songs = util.prepare_songs(raw_songs)
-    assert songs[0] == 'i am runnin\' and singin\''
-    assert songs[1] == 'she is runnin\' all over the place'
-    assert songs[2] == 'runnin\' \n all over the place'
+    assert songs[0] == "i am runnin' and singin'"
+    assert songs[1] == "she is runnin' all over the place"
+    assert songs[2] == "runnin' \n all over the place"
 
     songs = util.prepare_songs(raw_songs, transform_words=True)
-    assert songs[0] == 'i am running and singing'
-    assert songs[1] == 'she\'s running all over the place'
-    assert songs[2] == 'running \n all over the place'
-    assert songs[3] == 'she\'s running and he\'s singing'
-    assert songs[4] == 'i can\'t listen to what they\'re singing'
-    assert songs[5] == 'the island we\'re on is nice'
-    assert songs[6] == 'i ain\'t having this ain\'t'
-    assert songs[7] == 'ain\'t!'
+    assert songs[0] == "i am running and singing"
+    assert songs[1] == "she's running all over the place"
+    assert songs[2] == "running \n all over the place"
+    assert songs[3] == "she's running and he's singing"
+    assert songs[4] == "i can't listen to what they're singing"
+    assert songs[5] == "the island we're on is nice"
+    assert songs[6] == "i ain't having this ain't"
+    assert songs[7] == "ain't!"
 
 
 def test_prepare_tokenizer(songs):
     """It should tokenize newlines and include all words."""
     tokenizer = util.prepare_tokenizer(songs)
     assert len(tokenizer.word_index) == 4
-    assert tokenizer.word_index == {
-        '\n': 1,
-        'woof': 2,
-        'meow': 3,
-        'chorus': 4
-    }
+    assert tokenizer.word_index == {"\n": 1, "woof": 2, "meow": 3, "chorus": 4}
 
     sentences = tokenizer.texts_to_sequences(songs)
 
