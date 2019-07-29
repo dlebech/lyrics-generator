@@ -55,22 +55,35 @@ python -m lyrics.train --embedding-file ./embeddings.txt
 
 The embeddings are still assumed to be 50 dimensional.
 
+#### Training on GPU
+
+The requirements.txt file refers to the CPU version of Tensorflow but manually
+uninstalling and installing the GPU version should work fine.
+
+However, it might be a bit easier with Docker and [nvidia-docker](https://github.com/NVIDIA/nvidia-docker),
+so follow the instructions there to install it first, and then:
+
+```shell
+docker build -t lyrics-gpu .
+docker run --rm -it --gpus all -v $PWD:/tmp -w /tmp lyrics-gpu python -m lyrics.train
+```
 
 ## Create new lyrics
 
 ```shell
-python cli.py lyrics model.h5 tokenizer.pickle
+python -m cli lyrics model.h5 tokenizer.pickle
 ```
 
-Try `python cli.py lyrics -h` to find out more
+Try `python -m cli lyrics -h` to find out more
 
 ## Export to Tensorflow JS (used for the app)
 
 ```shell
-python cli.py export model.h5 tokenizer.pickle
+python -m cli export model.h5 tokenizer.pickle
 ```
 
-This creates a sub-directory `export` with the relevant files (can be used for the app)
+This creates a sub-directory `export/js` with the relevant files (can be used
+for the app).
 
 ## Single-page "app" for creating lyrics
 

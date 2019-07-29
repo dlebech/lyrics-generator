@@ -29,7 +29,8 @@
 
     async prepareGenerator(logger) {
       logger('Loading Tensorflow model...');
-      this.model = await tf.loadModel('data/model.json');
+      this.model = await tf.loadLayersModel('data/model.json');
+      this.padTo = this.model.inputs[0].shape[1];
 
       logger('Loading word mappings...');
       this.words = await fetch('data/words.json')
@@ -86,7 +87,9 @@
         const tokenVector = this.textToVec(textOutput);
         if (this.debug) console.log('Token vector', tokenVector);
 
-        const paddedTensor = this.padVector(tokenVector, 14).reshape([1, 14]); // TODO
+        const paddedTensor = this
+          .padVector(tokenVector, this.padTo)
+          .reshape([1, this.padTo]);
         if (this.debug) paddedTensor.print();
 
         const prediction = await this.model.predict(paddedTensor);
