@@ -3,7 +3,7 @@ numpy==1.14.1
 pandas==0.23.1
 scikit-learn==0.19.1
 scipy==1.1.0
-tensorflow==1.9.0
+tensorflow==1.12.2
 tensorflowjs==0.5.7
 gensim==3.6.0
 google-compute-engine==2.8.3
