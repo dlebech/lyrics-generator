@@ -50,8 +50,8 @@ def test_prepare_data_transform_words():
     assert y[0] == world
 
 
-def test_prepare_data_limit_zeros():
-    """It should prepare song data and transform words"""
+def test_prepare_data_use_full_sentences():
+    """It should prepare song data and use full sentences"""
     songs = [longer_song]
     x, y, seq_length, num_words, tokenizer = train.prepare_data(
         songs, transform_words=True, use_full_sentences=True
@@ -78,6 +78,26 @@ def test_prepare_data_limit_zeros():
 
     # "me" is the last word so it should be the output of the last sequence...
     assert y[-1] == me
+
+
+def test_prepare_data_use_strings():
+    """It should prepare song data and return sentences strings"""
+    songs = [longer_song]
+    x, y, seq_length, num_words, tokenizer = train.prepare_data(
+        songs, transform_words=True, use_full_sentences=True, use_strings=True
+    )
+
+    # Basic assumption are the same as the previous test.
+    assert seq_length == 23
+    assert num_words == 26
+
+    # "can't" is the 24th word so with a sequence length of 23, it should be the first output.
+    cant = tokenizer.word_index["can't"]
+    assert y[0] == cant
+
+    # Make sure we have strings
+    assert type(x[0]) == str
+    assert x[0] == "hello world is a dream \n i know when i been like your love \n and i can't go home \n \n i"
 
 
 def test_train(export_dir, embedding_file, songfile):

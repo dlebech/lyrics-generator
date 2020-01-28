@@ -8,11 +8,14 @@ import statistics
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tensorflow_hub as hub
 
 from . import config, embedding, util
 
 
-def prepare_data(songs, transform_words=False, use_full_sentences=False):
+def prepare_data(
+    songs, transform_words=False, use_full_sentences=False, use_strings=False
+):
     """Prepare songs for training, including tokenizing and word preprocessing.
 
     Parameters
@@ -24,6 +27,21 @@ def prepare_data(songs, transform_words=False, use_full_sentences=False):
     use_full_sentences : bool
         Whether or not to only create full sentences, i.e. sentences where
         all the tokenized words are non-zero.
+    use_strings : bool
+        Whether or not to return sequences as normal strings or lists of integers
+
+    Returns
+    -------
+    X : list
+        Input sentences
+    y : list
+        Predicted words
+    seq_length : int
+        The length of each sequence
+    num_words : int
+        Number of words in the vocabulary
+    tokenizer : object
+        The Keras preproceessing tokenizer used for transforming sentences.
 
     """
     songs = util.prepare_songs(songs, transform_words=transform_words)
@@ -109,6 +127,9 @@ def prepare_data(songs, transform_words=False, use_full_sentences=False):
     print("Took {}".format(datetime.datetime.now() - now))
     print()
 
+    if use_strings:
+        X = tokenizer.sequences_to_texts(X)
+
     return X, y, seq_length, num_words, tokenizer
 
 
@@ -151,6 +172,30 @@ def create_model(
     return model
 
 
+def create_transformer_model(
+    num_words, transformer_network, trainable=True,
+):
+    inp = tf.keras.layers.Input(shape=[], dtype=tf.string)
+    x = hub.KerasLayer(
+        "https://tfhub.dev/google/universal-sentence-encoder/4",
+        trainable=trainable,
+        input_shape=[],
+        dtype=tf.string,
+    )(inp)
+    x = tf.keras.layers.Dense(64, activation="relu")(x)
+
+    # The + 1 accounts for the OOV token which can sometimes be present as the target word
+    outp = tf.keras.layers.Dense(num_words + 1, activation="softmax")(x)
+
+    model = tf.keras.models.Model(inputs=inp, outputs=outp)
+
+    model.compile(
+        loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"],
+    )
+    model.summary()
+    return model
+
+
 def train(
     epochs=100,
     export_dir=None,
@@ -161,6 +206,7 @@ def train(
     embedding_not_trainable=False,
     transform_words=False,
     use_full_sentences=False,
+    transformer_network=None,
 ):
     if export_dir is None:
         export_dir = "./export/{}".format(
@@ -168,33 +214,42 @@ def train(
         )
         os.makedirs(export_dir, exist_ok=True)
 
-    embedding_mapping = embedding.create_embedding_mappings(
-        embedding_file=embedding_file
-    )
     songs = util.load_songdata(songdata_file=songdata_file, artists=artists)
-    print("Will use {} songs from {} artists".format(len(songs), len(artists)))
+    print(f"Will use {len(songs)} songs from {len(artists)} artists")
 
     X, y, seq_length, num_words, tokenizer = prepare_data(
-        songs, transform_words=transform_words, use_full_sentences=use_full_sentences
+        songs,
+        transform_words=transform_words,
+        use_full_sentences=use_full_sentences,
+        use_strings=bool(transformer_network),
     )
-
-    # Make sure tokenizer is pickled, in case we need to
     util.pickle_tokenizer(tokenizer, export_dir)
 
-    embedding_matrix = embedding.create_embedding_matrix(
-        tokenizer,
-        embedding_mapping,
-        embedding_dim=embedding_dim,
-        max_num_words=num_words,
-    )
+    model = None
 
-    model = create_model(
-        seq_length,
-        num_words,
-        embedding_matrix,
-        embedding_dim=embedding_dim,
-        embedding_not_trainable=embedding_not_trainable,
-    )
+    if transformer_network:
+        print(f"Using transformer network '{transformer_network}'")
+        model = create_transformer_model(
+            num_words, transformer_network, trainable=not embedding_not_trainable
+        )
+    else:
+        print(f"Using precreated embeddings from {embedding_file}")
+        embedding_mapping = embedding.create_embedding_mappings(
+            embedding_file=embedding_file
+        )
+        embedding_matrix = embedding.create_embedding_matrix(
+            tokenizer,
+            embedding_mapping,
+            embedding_dim=embedding_dim,
+            max_num_words=num_words,
+        )
+        model = create_model(
+            seq_length,
+            num_words,
+            embedding_matrix,
+            embedding_dim=embedding_dim,
+            embedding_not_trainable=embedding_not_trainable,
+        )
 
     # Run the training
     model.fit(
@@ -249,10 +304,19 @@ if __name__ == "__main__":
             words in a song.
         """,
     )
+    parser.add_argument(
+        "--transformer-network",
+        help="""
+            Use a transformer architecture like the universal sentence encoder
+            rather than a recurrent neural network.
+        """,
+        choices=["use"],
+    )
     args = parser.parse_args()
     train(
         embedding_file=args.embedding_file,
         transform_words=args.transform_words,
         use_full_sentences=args.use_full_sentences,
         embedding_not_trainable=args.embedding_not_trainable,
+        transformer_network=args.transformer_network,
     )
