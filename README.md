@@ -65,8 +65,21 @@ so follow the instructions there to install it first, and then:
 
 ```shell
 docker build -t lyrics-gpu .
-docker run --rm -it --gpus all -v $PWD:/tmp -w /tmp lyrics-gpu python -m lyrics.train
+docker run --rm -it --gpus all -v $PWD:/tf/src -u $(id -u):$(id -g) lyrics-gpu bash
 ```
+
+Then run the normal commands from there, e.g. `python -m lyrics.train`.
+
+#### Use transformer network
+
+To use the universal sentence encoder architecture:
+
+```shell
+python -m lyrics.train --embedding-not-trainable --transform-words --use-full-sentences --transformer-network use
+```
+
+**Note** This model is not going to work in Tensorflow JS currently, so it
+should only be used from the command-line.
 
 ## Create new lyrics
 
