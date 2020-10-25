@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from . import config
 
-
+# Match present participle shortened with apostrophes like singin', workin'.
 ing_matcher = re.compile(r"(\win)'(?!\w)(\s)?")
 
 # Map a bunch of words to their shorter form so they will be treated as a
@@ -35,7 +35,7 @@ def load_tokenizer(tokenizer_path):
         return pickle.load(f)
 
 
-def load_songdata(songdata_file=config.SONGDATA_FILE, artists=config.ARTISTS):
+def load_songdata(songdata_file, artists):
     print("Loading song data from {}".format(songdata_file))
     songdata = pd.read_csv(songdata_file)
 
@@ -51,10 +51,13 @@ def _clean_song(song, transform_words=False):
     if not transform_words:
         return song
 
+    # Replace singin' with singing etc.
     song = ing_matcher.sub(r"\1g\2", song)
+
+    # Replace cannot with can't etc.
     for pair in sorted_word_pairs:
-        # Long to short
         song = re.sub(pair[0], pair[1], song)
+
     return song
 
 

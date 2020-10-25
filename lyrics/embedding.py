@@ -1,4 +1,5 @@
 """Embedding utilities."""
+import argparse
 import csv
 import datetime
 import multiprocessing
@@ -22,6 +23,7 @@ def create_word2vec(
     songdata_file=config.SONGDATA_FILE,
     artists=config.ARTISTS,
     embedding_dim=config.EMBEDDING_DIM,
+    name_suffix="",
 ):
     songs = util.load_songdata(songdata_file=songdata_file, artists=artists)
     songs = util.prepare_songs(songs)
@@ -42,8 +44,8 @@ def create_word2vec(
 
     # Save the model both in the gensim format but also as a text file, similar
     # to the glove embeddings
-    model.save("{}/word2vec.model".format(data_dir))
-    with open("{}/word2vec.txt".format(data_dir), "w") as f:
+    model.save(f"{data_dir}/word2vec{name_suffix}.model")
+    with open(f"{data_dir}/word2vec{name_suffix}.txt", "w") as f:
         writer = csv.writer(f, delimiter=" ", quoting=csv.QUOTE_MINIMAL)
         for word in model.wv.vocab:
             word_vector = model.wv[word]
@@ -110,4 +112,19 @@ def create_embedding_matrix(
 
 
 if __name__ == "__main__":
-    create_word2vec()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--name-suffix", default="", help="Name suffix for the embedding file."
+    )
+    parser.add_argument(
+        "--artists",
+        default=config.ARTISTS,
+        help="""
+            A list of artists to use. Use '*' (quoted) to include everyone.
+            The default is a group of rock artists.
+        """,
+        nargs="*",
+    )
+    args = parser.parse_args()
+    artists = args.artists if args.artists != ["*"] else []
+    create_word2vec(name_suffix=args.name_suffix, artists=artists)

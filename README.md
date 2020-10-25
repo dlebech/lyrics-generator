@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.com/dlebech/lyrics-generator.svg?branch=master)](https://travis-ci.com/dlebech/lyrics-generator)
 [![codecov](https://codecov.io/gh/dlebech/lyrics-generator/branch/master/graph/badge.svg)](https://codecov.io/gh/dlebech/lyrics-generator)
 
-This is a small experiment in generating lyrics with a recurrent neural network, trained with Keras and Tensorflow.
+This is a small experiment in generating lyrics with a recurrent neural network, trained with Keras and Tensorflow 2.
 
 It works in the browser with Tensorflow.js! Try it [here](https://davidlebech.com/lyrics/).
 
@@ -20,11 +20,21 @@ just install the missing packages :-)
 
 ### Get the data
 
-- Download the [songdata dataset](https://www.kaggle.com/mousehead/songlyrics).
+- ~~Download the [songdata dataset](https://www.kaggle.com/mousehead/songlyrics).~~ Unfortunately, this dataset is no longer available. See ["Create your own song dataset"](#create-your-own-song-dataset) below.
   - Save the `songdata.csv` file in a `data` sub-directory.
 - Download the [Glove embeddings](http://nlp.stanford.edu/data/glove.6B.zip)
   - Save the `glove.6B.50d.txt` file in a `data` sub-directory.
   - Alternatively, you can create your a word2vec embedding (see below)
+
+### Create your own song dataset
+
+The code expects an input dataset to be stored at `date/songdata.csv` by default (this can be changed in `config.py`).
+
+The file should be in CSV format with the following columns (case sensitive):
+- `artist`
+  - A string, e.g. "The Beatles"
+- `text`
+  - A string with the entire lyrics for one song, including newlines.
   
 ### (Optional) Create a word2vec embedding matrix
 
@@ -32,10 +42,12 @@ If you have the `songdata.csv` file from above, you can simply create the
 word2vec vectors like this:
 
 ```shell
-python -m lyrics.embedding
+python -m lyrics.embedding --name-suffix myembedding
 ```
 
-Perhaps there will be a proper CLI command for this in the future, perhaps not :-)
+This will create `word2vec_myembedding.model` and `word2vec_myembedding.txt`
+files in the default data directory `data/`. Use `-h` to see other options
+like artists.
 
 ### Run the training
 
@@ -54,6 +66,10 @@ python -m lyrics.train --embedding-file ./embeddings.txt
 ```
 
 The embeddings are still assumed to be 50 dimensional.
+
+The output model and tokenizer is stored in a timestamped folder like `export/2020-01-01T010203` by default.
+
+**Note**: During experimentation, I found that raising the batch size to something like 2048 speeds up processing, but it depends on your hardware resources whether this is feasible of course.
 
 #### Training on GPU
 
@@ -91,6 +107,8 @@ Try `python -m cli lyrics -h` to find out more
 
 ## Export to Tensorflow JS (used for the app)
 
+**Note**: Make sure to use the `--tfjs-compatible` flag during training!
+
 ```shell
 python -m cli export model.h5 tokenizer.pickle
 ```
@@ -99,6 +117,8 @@ This creates a sub-directory `export/js` with the relevant files (can be used
 for the app).
 
 ## Single-page "app" for creating lyrics
+
+**Note**: Make sure to use the `--tfjs-compatible` flag during training!
 
 The `lyrics-tfjs` sub-directory has a simple web-page that can be used to
 create lyrics in the browser. The code expects data to be found in a `data/`

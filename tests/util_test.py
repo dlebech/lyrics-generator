@@ -35,6 +35,12 @@ def test_load_songdata_limit_artists(songfile):
     assert songs[0] == "woof\n\nchorus\nwoof\n"
 
 
+def test_load_songdata_all_artists(songfile):
+    """It should only return the requested artists."""
+    songs = util.load_songdata(songdata_file=songfile, artists=[])
+    assert len(songs) == 2
+
+
 def test_prepare_songs(songs_raw):
     """It should strip newlines at beginning and end but preserve newlines in the middle."""
     songs = util.prepare_songs(songs_raw)
