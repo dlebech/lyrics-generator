@@ -1,7 +1,11 @@
 """Configuration and parameters."""
 
+BATCH_SIZE = 256
+MAX_EPOCHS = 100
+
 MAX_NUM_WORDS = 20000
 SONGDATA_FILE = "./data/songdata.csv"
+NUM_LINES_TO_INCLUDE = 4
 
 # The default embedding dimension matches the glove filename
 EMBEDDING_DIM = 50

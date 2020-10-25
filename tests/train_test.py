@@ -97,7 +97,23 @@ def test_prepare_data_use_strings():
 
     # Make sure we have strings
     assert type(x[0]) == str
-    assert x[0] == "hello world is a dream \n i know when i been like your love \n and i can't go home \n \n i"
+    assert (
+        x[0]
+        == "hello world is a dream \n i know when i been like your love \n and i can't go home \n \n i"
+    )
+
+
+def test_prepare_data_num_lines():
+    """It should prepare song data and take a specific number of lines"""
+    songs = [longer_song]
+    x, y, seq_length, num_words, tokenizer = train.prepare_data(
+        songs, num_lines_to_include=5
+    )
+
+    # Average length is five words
+    # Median length is also five words
+    # We should thus expect a sequence length of 29 (5 sentences + 4 newline character)
+    assert seq_length == 29
 
 
 def test_train(export_dir, embedding_file, songfile):

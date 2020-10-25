@@ -2,6 +2,7 @@
 import argparse
 import csv
 import datetime
+import enum
 import os
 import statistics
 
@@ -14,7 +15,11 @@ from . import config, embedding, util
 
 
 def prepare_data(
-    songs, transform_words=False, use_full_sentences=False, use_strings=False
+    songs,
+    transform_words=False,
+    use_full_sentences=False,
+    use_strings=False,
+    num_lines_to_include=config.NUM_LINES_TO_INCLUDE,
 ):
     """Prepare songs for training, including tokenizing and word preprocessing.
 
@@ -29,6 +34,9 @@ def prepare_data(
         all the tokenized words are non-zero.
     use_strings : bool
         Whether or not to return sequences as normal strings or lists of integers
+    num_lines_to_include: int
+        The number of lines to include in the sequences. A "line" is found by
+        taking the median length of lines over all songs.
 
     Returns
     -------
@@ -60,11 +68,11 @@ def prepare_data(
     # Find the newline integer
     newline_int = tokenizer.word_index["\n"]
 
-    # Calculate the average length of each sentence before a newline is seen.
+    # Calculate the average/median length of each sentence before a newline is seen.
     # This is probably between 5 and 10 words for most songs.
     # It will guide the verse structure.
     line_lengths = []
-    print("Find the average line length for all songs")
+    print("Find the average/median line length for all songs")
     now = datetime.datetime.now()
     for song_encoded in songs_encoded:
         # Find the indices of the newline characters.
@@ -100,16 +108,20 @@ def prepare_data(
             len(line_lengths), median_seq_length, mean_seq_length
         )
     )
+    print(f"Will include {num_lines_to_include} lines for sequences.")
     print()
 
-    # Prepare input data based on the median sequence length
-    # Take 4 average lines (hence the multiplication by 4)
-    # And assume a newline character between each (hence the + 3)
-    seq_length = int(round(median_seq_length)) * 4 + 3
+    # Prepare input data based on the median sequence length Take
+    # num_lines_to_include median lines (hence the multiplication by
+    # num_lines_to_include) And assume a newline character between each (hence
+    # the + (num_lines_to_include-1))
+    seq_length = (
+        int(round(median_seq_length)) * num_lines_to_include + num_lines_to_include - 1
+    )
 
     # Prepare data for training
     X, y = [], []
-    print("Creating test data")
+    print("Creating training data")
     now = datetime.datetime.now()
     for song_encoded in songs_encoded:
         start_index = seq_length if use_full_sentences else 1
@@ -139,6 +151,7 @@ def create_model(
     embedding_matrix,
     embedding_dim=config.EMBEDDING_DIM,
     embedding_not_trainable=False,
+    tfjs_compatible=False,
 ):
     # The + 1 accounts for the OOV token
     actual_num_words = num_words + 1
@@ -152,8 +165,12 @@ def create_model(
         mask_zero=True,
         name="song_embedding",
     )(inp)
-    x = tf.keras.layers.GRU(128, return_sequences=True)(x)
-    x = tf.keras.layers.GRU(128, dropout=0.2, recurrent_dropout=0.2)(x)
+    x = tf.keras.layers.GRU(
+        128, return_sequences=True, reset_after=not tfjs_compatible
+    )(x)
+    x = tf.keras.layers.GRU(
+        128, dropout=0.2, recurrent_dropout=0.2, reset_after=not tfjs_compatible
+    )(x)
     x = tf.keras.layers.Dense(128, activation="relu")(x)
     x = tf.keras.layers.Dropout(0.3)(x)
     outp = tf.keras.layers.Dense(actual_num_words, activation="softmax")(x)
@@ -207,10 +224,14 @@ def train(
     transform_words=False,
     use_full_sentences=False,
     transformer_network=None,
+    num_lines_to_include=config.NUM_LINES_TO_INCLUDE,
+    batch_size=config.BATCH_SIZE,
+    max_epochs=config.MAX_EPOCHS,
+    tfjs_compatible=False,
 ):
     if export_dir is None:
         export_dir = "./export/{}".format(
-            datetime.datetime.now().isoformat(timespec="seconds")
+            datetime.datetime.now().isoformat(timespec="seconds").replace(":", "")
         )
         os.makedirs(export_dir, exist_ok=True)
 
@@ -222,6 +243,7 @@ def train(
         transform_words=transform_words,
         use_full_sentences=use_full_sentences,
         use_strings=bool(transformer_network),
+        num_lines_to_include=num_lines_to_include,
     )
     util.pickle_tokenizer(tokenizer, export_dir)
 
@@ -249,20 +271,28 @@ def train(
             embedding_matrix,
             embedding_dim=embedding_dim,
             embedding_not_trainable=embedding_not_trainable,
+            tfjs_compatible=tfjs_compatible,
         )
+
+    print(
+        f"Running training with batch size {batch_size} and maximum epochs {max_epochs}"
+    )
 
     # Run the training
     model.fit(
         np.array(X),
         np.array(y),
-        batch_size=256,
-        epochs=epochs,
+        batch_size=batch_size,
+        epochs=max_epochs,
         callbacks=[
-            tf.keras.callbacks.EarlyStopping(monitor="loss", patience=10, verbose=1),
+            tf.keras.callbacks.EarlyStopping(
+                monitor="loss", patience=3, verbose=1, min_delta=0.001
+            ),
             tf.keras.callbacks.ModelCheckpoint(
                 "{}/model.h5".format(export_dir),
                 monitor="loss",
                 save_best_only=True,
+                save_freq=10,
                 verbose=1,
             ),
         ],
@@ -271,6 +301,20 @@ def train(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--artists",
+        default=config.ARTISTS,
+        help="""
+            A list of artists to use. Use '*' (quoted) to include everyone.
+            The default is a group of rock artists.
+        """,
+        nargs="*",
+    )
+    parser.add_argument(
+        "--songdata-file",
+        default=config.SONGDATA_FILE,
+        help="Use a custom songdata file",
+    )
     parser.add_argument(
         "--embedding-file",
         default=config.EMBEDDING_FILE,
@@ -312,11 +356,57 @@ if __name__ == "__main__":
         """,
         choices=["use"],
     )
+    parser.add_argument(
+        "--num-lines-to-include",
+        type=int,
+        default=config.NUM_LINES_TO_INCLUDE,
+        help="""
+            Number of lyrics lines to include. The data preparation finds a
+            median and average line length (typically between 5-10 words) and
+            includes a number of these standard lines according to this
+            parameter. This ensures all sequences are the same length but it
+            might chop up some songs mid-sentences.
+        """,
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=config.BATCH_SIZE,
+        help="Batch size for training",
+    )
+    parser.add_argument(
+        "--max-epochs",
+        type=int,
+        default=config.MAX_EPOCHS,
+        help="Maximum number of epochs to train for",
+    )
+    parser.add_argument(
+        "--tfjs-compatible",
+        action="store_true",
+        help="""
+            Makes the model exportable to JavaScript (Tensorflow JS). When
+            enabled, the network structure is changed slightly for the
+            recurrent GRU cells so they are supported by Tensorflow JS,
+            specifically setting reset_after=False. Note that this will
+            disable GPU training, which might (or might not) slow things
+            down.
+
+            This flag is ignored when using transformers, since they are not
+            compatible in the first place.
+        """,
+    )
     args = parser.parse_args()
+    artists = args.artists if args.artists != ["*"] else []
     train(
+        songdata_file=args.songdata_file,
+        artists=artists,
         embedding_file=args.embedding_file,
         transform_words=args.transform_words,
         use_full_sentences=args.use_full_sentences,
         embedding_not_trainable=args.embedding_not_trainable,
         transformer_network=args.transformer_network,
+        num_lines_to_include=args.num_lines_to_include,
+        batch_size=args.batch_size,
+        max_epochs=args.max_epochs,
+        tfjs_compatible=args.tfjs_compatible,
     )
