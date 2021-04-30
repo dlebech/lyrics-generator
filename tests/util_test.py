@@ -53,6 +53,11 @@ def test_prepare_songs_max_repeats(songs_raw):
     songs = util.prepare_songs(["repeat\nrepeat\nrepeat"])
     assert songs[0] == "repeat \n repeat"
 
+    songs = util.prepare_songs(
+        ["once\n twice\nrepeat \n repeat\nrepeat \n and again\n and again\n and again"]
+    )
+    assert songs[0] == "once \n twice \n repeat \n repeat \n and again \n and again"
+
 
 def test_prepare_songs_transform_words():
     """It should replace in' with ing."""
