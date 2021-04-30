@@ -20,6 +20,7 @@ def prepare_data(
     use_full_sentences=False,
     use_strings=False,
     num_lines_to_include=config.NUM_LINES_TO_INCLUDE,
+    max_repeats=config.MAX_REPEATS,
 ):
     """Prepare songs for training, including tokenizing and word preprocessing.
 
@@ -37,6 +38,8 @@ def prepare_data(
     num_lines_to_include: int
         The number of lines to include in the sequences. A "line" is found by
         taking the median length of lines over all songs.
+    max_repeats: int
+        The number of times a sentence can repeat between newlines
 
     Returns
     -------
@@ -52,7 +55,9 @@ def prepare_data(
         The Keras preproceessing tokenizer used for transforming sentences.
 
     """
-    songs = util.prepare_songs(songs, transform_words=transform_words)
+    songs = util.prepare_songs(
+        songs, transform_words=transform_words, max_repeats=max_repeats
+    )
     tokenizer = util.prepare_tokenizer(songs)
 
     num_words = min(config.MAX_NUM_WORDS, len(tokenizer.word_index))
@@ -65,7 +70,6 @@ def prepare_data(
     print("Took {}".format(datetime.datetime.now() - now))
     print()
 
-    # Find the newline integer
     newline_int = tokenizer.word_index["\n"]
 
     # Calculate the average/median length of each sentence before a newline is seen.
@@ -130,9 +134,7 @@ def prepare_data(
             # Manually pad/slice the sequences to the proper length
             # This avoids an expensive call to pad_sequences afterwards.
             if len(seq) < seq_length:
-                zeros = [0] * (seq_length - len(seq))
-                zeros.extend(seq)
-                seq = zeros
+                seq.extend([0] * (seq_length - len(seq)))
             seq = seq[-seq_length:]
             X.append(seq)
             y.append(song_encoded[i])
@@ -152,7 +154,14 @@ def create_model(
     embedding_dim=config.EMBEDDING_DIM,
     embedding_not_trainable=False,
     tfjs_compatible=False,
+    gpu_speedup=False,
 ):
+    if not tfjs_compatible:
+        print("Model will be created without tfjs support")
+
+    if gpu_speedup:
+        print("Model will be created with better GPU compatibility")
+
     # The + 1 accounts for the OOV token
     actual_num_words = num_words + 1
 
@@ -166,10 +175,13 @@ def create_model(
         name="song_embedding",
     )(inp)
     x = tf.keras.layers.GRU(
-        128, return_sequences=True, reset_after=not tfjs_compatible
+        128, return_sequences=True, reset_after=gpu_speedup or not tfjs_compatible
     )(x)
     x = tf.keras.layers.GRU(
-        128, dropout=0.2, recurrent_dropout=0.2, reset_after=not tfjs_compatible
+        128,
+        dropout=0.2,
+        recurrent_dropout=0.0 if gpu_speedup else 0.2,
+        reset_after=gpu_speedup or not tfjs_compatible,
     )(x)
     x = tf.keras.layers.Dense(128, activation="relu")(x)
     x = tf.keras.layers.Dropout(0.3)(x)
@@ -190,7 +202,9 @@ def create_model(
 
 
 def create_transformer_model(
-    num_words, transformer_network, trainable=True,
+    num_words,
+    transformer_network,
+    trainable=True,
 ):
     inp = tf.keras.layers.Input(shape=[], dtype=tf.string)
     x = hub.KerasLayer(
@@ -207,14 +221,15 @@ def create_transformer_model(
     model = tf.keras.models.Model(inputs=inp, outputs=outp)
 
     model.compile(
-        loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"],
+        loss="sparse_categorical_crossentropy",
+        optimizer="adam",
+        metrics=["accuracy"],
     )
     model.summary()
     return model
 
 
 def train(
-    epochs=100,
     export_dir=None,
     songdata_file=config.SONGDATA_FILE,
     artists=config.ARTISTS,
@@ -228,6 +243,9 @@ def train(
     batch_size=config.BATCH_SIZE,
     max_epochs=config.MAX_EPOCHS,
     tfjs_compatible=False,
+    gpu_speedup=False,
+    save_freq=10,
+    max_repeats=config.MAX_REPEATS,
 ):
     if export_dir is None:
         export_dir = "./export/{}".format(
@@ -244,6 +262,7 @@ def train(
         use_full_sentences=use_full_sentences,
         use_strings=bool(transformer_network),
         num_lines_to_include=num_lines_to_include,
+        max_repeats=max_repeats,
     )
     util.pickle_tokenizer(tokenizer, export_dir)
 
@@ -254,6 +273,8 @@ def train(
         model = create_transformer_model(
             num_words, transformer_network, trainable=not embedding_not_trainable
         )
+        # Transformer networks are slow to save, let's just save it every epoch.
+        save_freq = "epoch"
     else:
         print(f"Using precreated embeddings from {embedding_file}")
         embedding_mapping = embedding.create_embedding_mappings(
@@ -272,6 +293,7 @@ def train(
             embedding_dim=embedding_dim,
             embedding_not_trainable=embedding_not_trainable,
             tfjs_compatible=tfjs_compatible,
+            gpu_speedup=gpu_speedup,
         )
 
     print(
@@ -292,7 +314,7 @@ def train(
                 "{}/model.h5".format(export_dir),
                 monitor="loss",
                 save_best_only=True,
-                save_freq=10,
+                save_freq=save_freq,
                 verbose=1,
             ),
         ],
@@ -395,6 +417,27 @@ if __name__ == "__main__":
             compatible in the first place.
         """,
     )
+    parser.add_argument(
+        "--gpu-speedup",
+        action="store_true",
+        help="""
+            Make adjustments to the recurrent unit settings in the network to
+            allow using a cuDNN-specific implementation for a potential speedup.
+            See https://www.tensorflow.org/api_docs/python/tf/keras/layers/GRU
+        """,
+    )
+    parser.add_argument(
+        "--max-repeats",
+        type=int,
+        default=config.MAX_REPEATS,
+        help="""
+            If a sentences repeats multiple times (for example in a very long
+            and repeating chorus), reduce the number of repeats for model
+            training to this number. Repeats are delimited by a newline for
+            simplicity.
+            By default, anything above 2 repeats are discarded for training.
+        """,
+    )
     args = parser.parse_args()
     artists = args.artists if args.artists != ["*"] else []
     train(
@@ -409,4 +452,6 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         max_epochs=args.max_epochs,
         tfjs_compatible=args.tfjs_compatible,
+        gpu_speedup=args.gpu_speedup,
+        max_repeats=args.max_repeats,
     )

@@ -46,8 +46,35 @@ def load_songdata(songdata_file, artists):
     return songdata.text.values
 
 
-def _clean_song(song, transform_words=False):
-    song = song.lower().strip("\n").replace("\n", " \n ")
+def _remove_repeats(song, max_repeats):
+    seqs = song.split("\n")
+    seq_index = 0
+    final_song_sequences = []
+
+    while seq_index < len(seqs):
+        seq = seqs[seq_index].strip()
+        final_song_sequences.append(seq)
+        seq_index += 1
+        counter = 0
+
+        while seq_index < len(seqs):
+            next_seq = seqs[seq_index].strip()
+            if seq != next_seq:
+                break
+
+            counter += 1
+
+            if counter < max_repeats:
+                final_song_sequences.append(next_seq)
+            seq_index += 1
+
+    return " \n ".join(final_song_sequences)
+
+
+def _clean_song(song, transform_words, max_repeats):
+    song = song.lower().strip("\n")
+    song = _remove_repeats(song, max_repeats)
+
     if not transform_words:
         return song
 
@@ -61,7 +88,7 @@ def _clean_song(song, transform_words=False):
     return song
 
 
-def prepare_songs(songs, transform_words=False):
+def prepare_songs(songs, transform_words=False, max_repeats=config.MAX_REPEATS):
     """Do pre-cleaning of all songs in the given array."""
     # Put whitespace around each newline character so something like \nhello is
     # not treated as a word but newline characters are still preserved by
@@ -71,7 +98,10 @@ def prepare_songs(songs, transform_words=False):
     if transform_words:
         print("... also transforming words")
     now = datetime.datetime.now()
-    songs = [_clean_song(song, transform_words=transform_words) for song in songs]
+    songs = [
+        _clean_song(song, transform_words=transform_words, max_repeats=max_repeats)
+        for song in songs
+    ]
     print("Took {}".format(datetime.datetime.now() - now))
 
     return songs

@@ -48,6 +48,12 @@ def test_prepare_songs(songs_raw):
     assert songs[1] == "woof \n  \n chorus \n woof"
 
 
+def test_prepare_songs_max_repeats(songs_raw):
+    """It should strip newlines at beginning and end but preserve newlines in the middle."""
+    songs = util.prepare_songs(["repeat\nrepeat\nrepeat"])
+    assert songs[0] == "repeat \n repeat"
+
+
 def test_prepare_songs_transform_words():
     """It should replace in' with ing."""
     raw_songs = [

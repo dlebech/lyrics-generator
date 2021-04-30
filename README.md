@@ -86,6 +86,13 @@ docker run --rm -it --gpus all -v $PWD:/tf/src -u $(id -u):$(id -g) lyrics-gpu b
 
 Then run the normal commands from there, e.g. `python -m lyrics.train`.
 
+Tip: You might want to use the parameter `--gpu-speedup`
+
+Tip: If you get a cryptic Tensorflow error like `errors_impl.CancelledError:  [_Derived_]RecvAsync is cancelled.` while training on GPU, try pre-prending the train command with `TF_FORCE_GPU_ALLOW_GROWTH=true`, e.g.:
+```shell
+TF_FORCE_GPU_ALLOW_GROWTH=true python -m lyrics.train --transform-words --num-lines-to-include=10 --artists '*' --gpu-speedup
+```
+
 #### Use transformer network
 
 To use the universal sentence encoder architecture:
