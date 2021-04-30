@@ -17,6 +17,8 @@ i cannot cry
 i don't want to see
 i don't know why i can't run
 i got me
+i got me
+i got me
 """
 
 
@@ -30,6 +32,7 @@ def test_prepare_data_transform_words():
     # Average length is five words
     # Median length is also five words
     # We should thus expect a sequence length of 23 (4 sentences + 3 newline character)
+    # Note that the default max repeats 2 removes the last sentence
     assert seq_length == 23
 
     # There are 25 words plus the newline character...
@@ -46,8 +49,12 @@ def test_prepare_data_transform_words():
     # The first X will contain just the "hello" word and the target would be "world"
     hello = tokenizer.word_index["hello"]
     world = tokenizer.word_index["world"]
-    assert x[0][-1] == hello
+    assert x[0][0] == hello
     assert y[0] == world
+
+    # The last sequence should end with i can't run \n i got me i got because
+    # the last "me" is a target and the the repeat sentence should be deleted.
+    assert tokenizer.sequences_to_texts(x[-1:])[0].endswith("i can't run \n i got me \n i got")
 
 
 def test_prepare_data_use_full_sentences():
@@ -119,12 +126,13 @@ def test_prepare_data_num_lines():
 def test_train(export_dir, embedding_file, songfile):
     """It should train and save a model and tokenizer."""
     train.train(
-        epochs=1,
+        max_epochs=1,
         export_dir=export_dir,
         songdata_file=songfile,
         artists=["cat", "dog"],
         embedding_file=embedding_file,
         embedding_dim=3,
+        save_freq="epoch",
     )
     assert os.path.exists("{}/model.h5".format(export_dir))
     assert os.path.exists("{}/tokenizer.pickle".format(export_dir))

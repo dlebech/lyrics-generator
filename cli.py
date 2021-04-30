@@ -50,7 +50,7 @@ def generate_lyrics(model, tokenizer, text_seed, song_length, randomness=0):
     while len(text_output) < song_length:
         if seq_length != -1:
             padded = tf.keras.preprocessing.sequence.pad_sequences(
-                [text_output], maxlen=seq_length
+                [text_output], maxlen=seq_length, padding="post"
             )
         else:
             padded = np.array([text_output_str])
