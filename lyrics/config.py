@@ -7,6 +7,7 @@ MAX_NUM_WORDS = 20000
 SONGDATA_FILE = "./data/songdata.csv"
 NUM_LINES_TO_INCLUDE = 4
 MAX_REPEATS = 2
+SAVE_FREQUENCY = 10
 
 # The default embedding dimension matches the glove filename
 EMBEDDING_DIM = 50
