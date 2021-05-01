@@ -117,6 +117,11 @@ if __name__ == "__main__":
         "--name-suffix", default="", help="Name suffix for the embedding file."
     )
     parser.add_argument(
+        "--songdata-file",
+        default=config.SONGDATA_FILE,
+        help="Use a custom songdata file",
+    )
+    parser.add_argument(
         "--artists",
         default=config.ARTISTS,
         help="""
@@ -127,4 +132,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     artists = args.artists if args.artists != ["*"] else []
-    create_word2vec(name_suffix=args.name_suffix, artists=artists)
+    create_word2vec(
+        name_suffix=args.name_suffix, artists=artists, songdata_file=args.songdata_file
+    )
