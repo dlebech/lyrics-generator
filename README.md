@@ -1,6 +1,6 @@
 # Lyrics Generator
 
-[![Build Status](https://travis-ci.com/dlebech/lyrics-generator.svg?branch=master)](https://travis-ci.com/dlebech/lyrics-generator)
+![build status](https://github.com/dlebech/lyrics-generator/actions/workflows/python-app.yml/badge.svg)
 [![codecov](https://codecov.io/gh/dlebech/lyrics-generator/branch/master/graph/badge.svg)](https://codecov.io/gh/dlebech/lyrics-generator)
 
 This is a small experiment in generating lyrics with a recurrent neural network, trained with Keras and Tensorflow 2.
