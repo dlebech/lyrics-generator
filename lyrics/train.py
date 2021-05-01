@@ -244,7 +244,7 @@ def train(
     max_epochs=config.MAX_EPOCHS,
     tfjs_compatible=False,
     gpu_speedup=False,
-    save_freq=10,
+    save_freq=config.SAVE_FREQUENCY,
     max_repeats=config.MAX_REPEATS,
 ):
     if export_dir is None:
@@ -438,6 +438,15 @@ if __name__ == "__main__":
             By default, anything above 2 repeats are discarded for training.
         """,
     )
+    parser.add_argument(
+        "--save-freq",
+        type=int,
+        default=config.SAVE_FREQUENCY,
+        help="""How often to save a snapshot of the model (if it has improved
+        since last snapshot). Model saving can take some time so if batches are
+        very fast, you might want to increase this number. The default is 10.
+        """,
+    )
     args = parser.parse_args()
     artists = args.artists if args.artists != ["*"] else []
     train(
@@ -454,4 +463,5 @@ if __name__ == "__main__":
         tfjs_compatible=args.tfjs_compatible,
         gpu_speedup=args.gpu_speedup,
         max_repeats=args.max_repeats,
+        save_freq=args.save_freq
     )
