@@ -21,6 +21,7 @@ def prepare_data(
     use_strings=False,
     num_lines_to_include=config.NUM_LINES_TO_INCLUDE,
     max_repeats=config.MAX_REPEATS,
+    char_level=False,
 ):
     """Prepare songs for training, including tokenizing and word preprocessing.
 
@@ -40,6 +41,9 @@ def prepare_data(
         taking the median length of lines over all songs.
     max_repeats: int
         The number of times a sentence can repeat between newlines
+    char_level: bool
+        Whether or not to prepare for character-level modeling or not. The
+        default is False, meaning the data is prepared to word-level
 
     Returns
     -------
@@ -58,7 +62,7 @@ def prepare_data(
     songs = util.prepare_songs(
         songs, transform_words=transform_words, max_repeats=max_repeats
     )
-    tokenizer = util.prepare_tokenizer(songs)
+    tokenizer = util.prepare_tokenizer(songs, char_level=char_level)
 
     num_words = min(config.MAX_NUM_WORDS, len(tokenizer.word_index))
 
@@ -170,18 +174,22 @@ def create_model(
         input_dim=actual_num_words,
         output_dim=embedding_dim,
         input_length=seq_length,
-        weights=[embedding_matrix],
+        weights=[embedding_matrix] if embedding_matrix is not None else None,
         mask_zero=True,
         name="song_embedding",
     )(inp)
-    x = tf.keras.layers.GRU(
-        128, return_sequences=True, reset_after=gpu_speedup or not tfjs_compatible
+    x = tf.keras.layers.Bidirectional(
+        tf.keras.layers.GRU(
+            128, return_sequences=True, reset_after=gpu_speedup or not tfjs_compatible
+        )
     )(x)
-    x = tf.keras.layers.GRU(
-        128,
-        dropout=0.2,
-        recurrent_dropout=0.0 if gpu_speedup else 0.2,
-        reset_after=gpu_speedup or not tfjs_compatible,
+    x = tf.keras.layers.Bidirectional(
+        tf.keras.layers.GRU(
+            128,
+            dropout=0.2,
+            recurrent_dropout=0.0 if gpu_speedup else 0.2,
+            reset_after=gpu_speedup or not tfjs_compatible,
+        )
     )(x)
     x = tf.keras.layers.Dense(128, activation="relu")(x)
     x = tf.keras.layers.Dropout(0.3)(x)
@@ -246,6 +254,8 @@ def train(
     gpu_speedup=False,
     save_freq=config.SAVE_FREQUENCY,
     max_repeats=config.MAX_REPEATS,
+    char_level=False,
+    early_stopping_patience=config.EARLY_STOPPING_PATIENCE
 ):
     if export_dir is None:
         export_dir = "./export/{}".format(
@@ -263,6 +273,7 @@ def train(
         use_strings=bool(transformer_network),
         num_lines_to_include=num_lines_to_include,
         max_repeats=max_repeats,
+        char_level=char_level,
     )
     util.pickle_tokenizer(tokenizer, export_dir)
 
@@ -276,16 +287,19 @@ def train(
         # Transformer networks are slow to save, let's just save it every epoch.
         save_freq = "epoch"
     else:
-        print(f"Using precreated embeddings from {embedding_file}")
-        embedding_mapping = embedding.create_embedding_mappings(
-            embedding_file=embedding_file
-        )
-        embedding_matrix = embedding.create_embedding_matrix(
-            tokenizer,
-            embedding_mapping,
-            embedding_dim=embedding_dim,
-            max_num_words=num_words,
-        )
+        embedding_matrix = None
+        # Don't use word embeddings on char-level training.
+        if not char_level:
+            print(f"Using precreated embeddings from {embedding_file}")
+            embedding_mapping = embedding.create_embedding_mappings(
+                embedding_file=embedding_file
+            )
+            embedding_matrix = embedding.create_embedding_matrix(
+                tokenizer,
+                embedding_mapping,
+                embedding_dim=embedding_dim,
+                max_num_words=num_words,
+            )
         model = create_model(
             seq_length,
             num_words,
@@ -308,7 +322,7 @@ def train(
         epochs=max_epochs,
         callbacks=[
             tf.keras.callbacks.EarlyStopping(
-                monitor="loss", patience=3, verbose=1, min_delta=0.001
+                monitor="loss", patience=early_stopping_patience, verbose=1, min_delta=0.001
             ),
             tf.keras.callbacks.ModelCheckpoint(
                 "{}/model.h5".format(export_dir),
@@ -442,9 +456,26 @@ if __name__ == "__main__":
         "--save-freq",
         type=int,
         default=config.SAVE_FREQUENCY,
-        help="""How often to save a snapshot of the model (if it has improved
+        help=f"""How often to save a snapshot of the model (if it has improved
         since last snapshot). Model saving can take some time so if batches are
-        very fast, you might want to increase this number. The default is 10.
+        very fast, you might want to increase this number.
+        The default is {config.SAVE_FREQUENCY}.
+        """,
+    )
+    parser.add_argument(
+        "--char-level",
+        action="store_true",
+        help="""Determines whether to use a character-level model, i.e. the
+        model will predict the next character instead of the next word.
+        """,
+    )
+    parser.add_argument(
+        "--early-stopping-patience",
+        type=int,
+        default=config.EARLY_STOPPING_PATIENCE,
+        help=f"""How many epochs with no loss improvements before doing early
+        stopping. For small datasets, you might want to increase this.
+        Default is {config.EARLY_STOPPING_PATIENCE}
         """,
     )
     args = parser.parse_args()
@@ -463,5 +494,7 @@ if __name__ == "__main__":
         tfjs_compatible=args.tfjs_compatible,
         gpu_speedup=args.gpu_speedup,
         max_repeats=args.max_repeats,
-        save_freq=args.save_freq
+        save_freq=args.save_freq,
+        char_level=args.char_level,
+        early_stopping_patience=args.early_stopping_patience
     )

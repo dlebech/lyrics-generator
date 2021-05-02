@@ -45,8 +45,10 @@ def generate_lyrics(model, tokenizer, text_seed, song_length, randomness=0):
     # Create a reverse lookup index for integers to words
     rev = {v: k for k, v in tokenizer.word_index.items()}
 
+    spacer = '' if tokenizer.char_level else ' '
+
     text_output = tokenizer.texts_to_sequences([text_seed])[0]
-    text_output_str = " ".join(rev.get(word) for word in text_output)
+    text_output_str = spacer.join(rev.get(word) for word in text_output)
     while len(text_output) < song_length:
         if seq_length != -1:
             padded = tf.keras.preprocessing.sequence.pad_sequences(
@@ -57,7 +59,7 @@ def generate_lyrics(model, tokenizer, text_seed, song_length, randomness=0):
         next_word = model.predict_on_batch(padded)
         next_word = softmax_sampling(next_word[0], randomness)
         text_output.append(next_word)
-        text_output_str += f" {rev.get(next_word)}"
+        text_output_str += f"{spacer}{rev.get(next_word)}"
     return text_output, text_output_str
 
 
@@ -109,7 +111,7 @@ def cli():
     )
     lyrics_parser.add_argument(
         "--length",
-        default=20,
+        default=50,
         type=int,
         help="The maximum length (in characters) for the lyrics",
     )

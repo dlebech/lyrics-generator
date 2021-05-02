@@ -123,6 +123,27 @@ def test_prepare_data_num_lines():
     assert seq_length == 29
 
 
+def test_prepare_data_char_level():
+    """It should prepare song data and character level data"""
+    songs = [longer_song]
+    x, y, seq_length, num_words, tokenizer = train.prepare_data(
+        songs, char_level=True
+    )
+
+    # The vocabulary is slightly smaller than the above test because it consists
+    # of characters.
+    assert num_words == 23
+
+    # The first X will contain no zeros
+    h = tokenizer.word_index["h"]
+    e = tokenizer.word_index["e"]
+    assert x[0][0] == h
+    assert y[0] == e
+
+    # "me" is the last word so it should be the output of the last sequence...
+    assert y[-1] == e
+
+
 def test_train(export_dir, embedding_file, songfile):
     """It should train and save a model and tokenizer."""
     train.train(

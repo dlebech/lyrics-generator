@@ -114,3 +114,10 @@ def test_prepare_tokenizer_limit_words(songs):
     # 0 is reserved, 1 is newline, 2 is woof, the others are not included so they will be 0
     assert sentences[0] == [1]
     assert sentences[1] == [2, 1, 1, 1, 2, 2]
+
+
+def test_prepare_tokenizer_char_level(songs):
+    """It should tokenize at character level."""
+    tokenizer = util.prepare_tokenizer(songs, char_level=True)
+    # 12 characters = ['\n', ' ', 'c', 'e', 'f', 'h', 'm', 'o', 'r', 's', 'u', 'w']
+    assert len(tokenizer.word_index) == 12
