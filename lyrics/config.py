@@ -8,6 +8,7 @@ SONGDATA_FILE = "./data/songdata.csv"
 NUM_LINES_TO_INCLUDE = 4
 MAX_REPEATS = 2
 SAVE_FREQUENCY = 10
+EARLY_STOPPING_PATIENCE = 5
 
 # The default embedding dimension matches the glove filename
 EMBEDDING_DIM = 50

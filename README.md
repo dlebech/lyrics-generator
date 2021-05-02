@@ -7,6 +7,8 @@ This is a small experiment in generating lyrics with a recurrent neural network,
 
 It works in the browser with Tensorflow.js! Try it [here](https://davidlebech.com/lyrics/).
 
+The model can be trained at both word- and character level which each has their own pros and cons.
+
 ## Train the model
 
 ### Install dependencies
@@ -20,21 +22,28 @@ just install the missing packages :-)
 
 ### Get the data
 
-- ~~Download the [songdata dataset](https://www.kaggle.com/mousehead/songlyrics).~~ Unfortunately, this dataset is no longer available. See ["Create your own song dataset"](#create-your-own-song-dataset) below.
-  - Save the `songdata.csv` file in a `data` sub-directory.
+- Create a song dataset. See ["Create your own song dataset"](#create-your-own-song-dataset) below.
+  - Save the dataset as `songdata.csv` file in a `data` sub-directory.
+  - Alternatively, you can name it anything you like and use the `--songdata-file` parameter when training.
 - Download the [Glove embeddings](http://nlp.stanford.edu/data/glove.6B.zip)
   - Save the `glove.6B.50d.txt` file in a `data` sub-directory.
   - Alternatively, you can create your a word2vec embedding (see below)
 
 ### Create your own song dataset
 
-The code expects an input dataset to be stored at `date/songdata.csv` by default (this can be changed in `config.py`).
+The code expects an input dataset to be stored at `date/songdata.csv` by default (this can be changed in `config.py` or via CLI parameter `--songdata-file`).
 
 The file should be in CSV format with the following columns (case sensitive):
 - `artist`
   - A string, e.g. "The Beatles"
 - `text`
   - A string with the entire lyrics for one song, including newlines.
+
+A sample dataset with a simple text is provided in `sample.csv`. To test things are working, you can train using that file:
+
+```shell
+python -m lyrics.train --songdata-file sample.csv --early-stopping-patience 50 --artists '*'
+```
   
 ### (Optional) Create a word2vec embedding matrix
 
@@ -47,7 +56,7 @@ python -m lyrics.embedding --name-suffix myembedding
 
 This will create `word2vec_myembedding.model` and `word2vec_myembedding.txt`
 files in the default data directory `data/`. Use `-h` to see other options
-like artists.
+like artists and custom songdata file.
 
 ### Run the training
 
@@ -98,11 +107,19 @@ TF_FORCE_GPU_ALLOW_GROWTH=true python -m lyrics.train --transform-words --num-li
 To use the universal sentence encoder architecture:
 
 ```shell
-python -m lyrics.train --embedding-not-trainable --transform-words --use-full-sentences --transformer-network use
+python -m lyrics.train --embedding-not-trainable --transformer-network use
 ```
 
 **Note** This model is not going to work in Tensorflow JS currently, so it
 should only be used from the command-line.
+
+#### Character-level predictions
+
+In the default training mode, the model predicts the next word, given a sequence of words. Changing the model to predict the next character can be done using the `--char-level` flag.
+
+```shell
+python -m lyrics.train --char-level
+```
 
 ## Create new lyrics
 

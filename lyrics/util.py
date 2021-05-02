@@ -107,11 +107,13 @@ def prepare_songs(songs, transform_words=False, max_repeats=config.MAX_REPEATS):
     return songs
 
 
-def prepare_tokenizer(songs, num_words=config.MAX_NUM_WORDS):
+def prepare_tokenizer(songs, num_words=config.MAX_NUM_WORDS, char_level=False):
     """Prepare the song tokenizer. Uses Keras' tokenizer"""
     # Create tokenizer and remove newline character from the filters so it's treated as a word
     # Use +1 in the number of words to include the OOV (0) word
-    tokenizer = tf.keras.preprocessing.text.Tokenizer(num_words=num_words + 1)
+    tokenizer = tf.keras.preprocessing.text.Tokenizer(
+        num_words=num_words + 1, char_level=char_level
+    )
     tokenizer.filters = tokenizer.filters.replace("\n", "")
 
     # Fit on the texts and convert the data to integer sequences
