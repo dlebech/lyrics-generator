@@ -7,6 +7,7 @@ import pickle
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
+import tensorflow_text
 
 from lyrics import util
 
@@ -133,8 +134,9 @@ def cli():
         "--randomness",
         default=0.0,
         type=float,
-        help="""Probability variance to apply when selecting words.
-            Can be larger than 1, but provides best results between 0 and 1""",
+        help="""Probability variance (sometimes called "temperature") to apply
+        when selecting words.  Can be larger than 1, but makes the most sense
+        between 0 and 1.""",
     )
     lyrics_parser.add_argument(
         "--print-raw",

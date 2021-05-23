@@ -39,11 +39,20 @@ The file should be in CSV format with the following columns (case sensitive):
 - `text`
   - A string with the entire lyrics for one song, including newlines.
 
+You can have any number of other columns, they will just be ignored.
+
 A sample dataset with a simple text is provided in `sample.csv`. To test things are working, you can train using that file:
 
 ```shell
 python -m lyrics.train --songdata-file sample.csv --early-stopping-patience 50 --artists '*'
 ```
+
+#### Dataset suggestions
+
+- Download `billboardHot100_1999-2019.csv` file from the [Data on Songs from Billboard 1999-2019](https://www.kaggle.com/danield2255/data-on-songs-from-billboard-19992019)
+  - Put it into the `data/` folder and run `python scripts/billboard.py` script which will prepare the file for training.
+  - (Optional) `pip install fasttext` to detect language. If it's not installed, language is not detected.
+
   
 ### (Optional) Create a word2vec embedding matrix
 
@@ -51,7 +60,7 @@ If you have the `songdata.csv` file from above, you can simply create the
 word2vec vectors like this:
 
 ```shell
-python -m lyrics.embedding --name-suffix myembedding
+python -m lyrics.embedding --name-suffix _myembedding
 ```
 
 This will create `word2vec_myembedding.model` and `word2vec_myembedding.txt`
@@ -82,11 +91,7 @@ The output model and tokenizer is stored in a timestamped folder like `export/20
 
 #### Training on GPU
 
-The requirements.txt file refers to the CPU version of Tensorflow but manually
-uninstalling and installing the GPU version should work fine.
-
-However, it might be a bit easier with Docker and [nvidia-docker](https://github.com/NVIDIA/nvidia-docker),
-so follow the instructions there to install it first, and then:
+I have found it easier to train on GPU by using Docker and [nvidia-docker](https://github.com/NVIDIA/nvidia-docker), rather than try to install CUDA myself. To do this, first make sure you have nvidia-docker set up correct, and then:
 
 ```shell
 docker build -t lyrics-gpu .
@@ -95,23 +100,26 @@ docker run --rm -it --gpus all -v $PWD:/tf/src -u $(id -u):$(id -g) lyrics-gpu b
 
 Then run the normal commands from there, e.g. `python -m lyrics.train`.
 
-Tip: You might want to use the parameter `--gpu-speedup`
+Tip: You might want to use the parameter `--gpu-speedup`! Just note that this will disable the Tensorflowjs compatibility, regardless of whether you have set the `--tfjs-compatible` flag.
 
-Tip: If you get a cryptic Tensorflow error like `errors_impl.CancelledError:  [_Derived_]RecvAsync is cancelled.` while training on GPU, try pre-prending the train command with `TF_FORCE_GPU_ALLOW_GROWTH=true`, e.g.:
+Tip: If you get a cryptic Tensorflow error like `errors_impl.CancelledError:  [_Derived_]RecvAsync is cancelled.` while training on GPU, try pre-pending the train command with `TF_FORCE_GPU_ALLOW_GROWTH=true`, e.g.:
 ```shell
 TF_FORCE_GPU_ALLOW_GROWTH=true python -m lyrics.train --transform-words --num-lines-to-include=10 --artists '*' --gpu-speedup
 ```
 
 #### Use transformer network
 
-To use the universal sentence encoder architecture:
+To use the universal sentence encoder or BERT architecture use the `--transformer-network` parameter:
 
 ```shell
-python -m lyrics.train --embedding-not-trainable --transformer-network use
+python -m lyrics.train --transformer-network [use|bert]
 ```
 
-**Note** This model is not going to work in Tensorflow JS currently, so it
+**Note**: These models are not going to work in Tensorflow JS currently, so it
 should only be used from the command-line.
+
+**Note**: I have not been able to get any result with BERT. Only included for
+illustration purposes.
 
 #### Character-level predictions
 
@@ -127,7 +135,13 @@ python -m lyrics.train --char-level
 python -m cli lyrics model.h5 tokenizer.pickle
 ```
 
-Try `python -m cli lyrics -h` to find out more
+Try `python -m cli lyrics -h` to find out more. For example, using `--randomness` and `--text` can be recommended.
+
+If you want to add newlines to the seed text via `--text`, you need to add a space on each side. For example, this works in Bash:
+
+```
+--text $'you are my fire \n the one desire'
+```
 
 ## Export to Tensorflow JS (used for the app)
 

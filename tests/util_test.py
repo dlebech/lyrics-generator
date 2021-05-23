@@ -1,11 +1,4 @@
 """Test the utility module."""
-import os
-import pickle
-import shutil
-import tempfile
-
-import pandas as pd
-import pytest
 import tensorflow as tf
 
 from lyrics import util
@@ -63,28 +56,38 @@ def test_prepare_songs_transform_words():
     """It should replace in' with ing."""
     raw_songs = [
         "I am runnin' and singin'",
-        "She is runnin' all over the place",
+        "She is runnin', all over the place",
         "runnin'\nall over the place",
         "She is runnin' and he is singin'",
         "I cannot listen to what they are singin'",
         "The island we are on is nice",
         "I ain't havin' this ain't",
         "Ain't!",
+        "She isn't goin'",
+        "He isn't talkin'",
     ]
     songs = util.prepare_songs(raw_songs)
     assert songs[0] == "i am runnin' and singin'"
-    assert songs[1] == "she is runnin' all over the place"
+    assert songs[1] == "she is runnin', all over the place"
     assert songs[2] == "runnin' \n all over the place"
 
     songs = util.prepare_songs(raw_songs, transform_words=True)
     assert songs[0] == "i am running and singing"
-    assert songs[1] == "she's running all over the place"
+    assert songs[1] == "she's running, all over the place"
     assert songs[2] == "running \n all over the place"
     assert songs[3] == "she's running and he's singing"
     assert songs[4] == "i can't listen to what they're singing"
     assert songs[5] == "the island we're on is nice"
     assert songs[6] == "i ain't having this ain't"
     assert songs[7] == "ain't!"
+    assert songs[8] == "she isn't going"
+    assert songs[9] == "he isn't talking"
+
+
+def test_prepare_songs_profanity_censor():
+    """It should remove profanity."""
+    songs = util.prepare_songs(["ok shit go *"], profanity_censor=True)
+    assert songs[0] == "ok **** go"
 
 
 def test_prepare_tokenizer(songs):
@@ -121,3 +124,13 @@ def test_prepare_tokenizer_char_level(songs):
     tokenizer = util.prepare_tokenizer(songs, char_level=True)
     # 12 characters = ['\n', ' ', 'c', 'e', 'f', 'h', 'm', 'o', 'r', 's', 'u', 'w']
     assert len(tokenizer.word_index) == 12
+
+
+def test_prepare_tokenizer_profanity():
+    """It should accept the profanity censorship."""
+    songs = ["ok ok ok **** go go"]
+    tokenizer = util.prepare_tokenizer(["ok ok ok **** go go"])
+    assert len(tokenizer.word_index) == 3
+    assert tokenizer.word_index == {"ok": 1, "go": 2, "****": 3}
+    sentences = tokenizer.texts_to_sequences(songs)
+    assert sentences[0] == [1, 1, 1, 3, 2, 2]
