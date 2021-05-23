@@ -1,13 +1,15 @@
 """Shared Utility functions."""
-import csv
 import datetime
 import pickle
 import re
 
 import pandas as pd
 import tensorflow as tf
+from better_profanity import profanity
 
 from . import config
+
+star_matcher = re.compile(r"\*")
 
 # Match present participle shortened with apostrophes like singin', workin'.
 ing_matcher = re.compile(r"(\win)'(?!\w)(\s)?")
@@ -17,8 +19,8 @@ ing_matcher = re.compile(r"(\win)'(?!\w)(\s)?")
 # other.
 sorted_word_pairs = [
     # Make sure to not catch edge cases such as the island
-    (re.compile(r"(?<!\w)he is"), "he's"),
-    ("she is", "she's"),
+    (re.compile(r"(?<!\w)he is(?!\w)"), "he's"),
+    (re.compile(r"she is(?!\w)"), "she's"),
     ("cannot", "can't"),
     ("they are", "they're"),
     ("we are", "we're"),
@@ -71,9 +73,13 @@ def _remove_repeats(song, max_repeats):
     return " \n ".join(final_song_sequences)
 
 
-def _clean_song(song, transform_words, max_repeats):
+def _clean_song(song, transform_words, max_repeats, profanity_censor=False):
+    song = star_matcher.sub("", song)
     song = song.lower().strip("\n")
     song = _remove_repeats(song, max_repeats)
+
+    if profanity_censor:
+        song = profanity.censor(song)
 
     if not transform_words:
         return song
@@ -88,7 +94,9 @@ def _clean_song(song, transform_words, max_repeats):
     return song
 
 
-def prepare_songs(songs, transform_words=False, max_repeats=config.MAX_REPEATS):
+def prepare_songs(
+    songs, transform_words=False, max_repeats=config.MAX_REPEATS, profanity_censor=False
+):
     """Do pre-cleaning of all songs in the given array."""
     # Put whitespace around each newline character so something like \nhello is
     # not treated as a word but newline characters are still preserved by
@@ -97,9 +105,16 @@ def prepare_songs(songs, transform_words=False, max_repeats=config.MAX_REPEATS):
     print("Preparing proper newlines")
     if transform_words:
         print("... also transforming words")
+    if profanity_censor:
+        print("... also censoring profanity")
     now = datetime.datetime.now()
     songs = [
-        _clean_song(song, transform_words=transform_words, max_repeats=max_repeats)
+        _clean_song(
+            song,
+            transform_words=transform_words,
+            max_repeats=max_repeats,
+            profanity_censor=profanity_censor,
+        )
         for song in songs
     ]
     print("Took {}".format(datetime.datetime.now() - now))
@@ -114,7 +129,9 @@ def prepare_tokenizer(songs, num_words=config.MAX_NUM_WORDS, char_level=False):
     tokenizer = tf.keras.preprocessing.text.Tokenizer(
         num_words=num_words + 1, char_level=char_level
     )
-    tokenizer.filters = tokenizer.filters.replace("\n", "")
+    # Allow * and newlines. The stars are used for profanity censoring, if that
+    # option is chosen during data preparation.
+    tokenizer.filters = tokenizer.filters.replace("\n", "").replace("*", "")
 
     # Fit on the texts and convert the data to integer sequences
     print("Fitting tokenizer to texts")

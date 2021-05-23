@@ -1,8 +1,6 @@
 """Train a song generating model."""
 import argparse
-import csv
 import datetime
-import enum
 import os
 import statistics
 
@@ -10,6 +8,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow_hub as hub
+import tensorflow_text
 
 from . import config, embedding, util
 
@@ -22,6 +21,7 @@ def prepare_data(
     num_lines_to_include=config.NUM_LINES_TO_INCLUDE,
     max_repeats=config.MAX_REPEATS,
     char_level=False,
+    profanity_censor=False,
 ):
     """Prepare songs for training, including tokenizing and word preprocessing.
 
@@ -60,7 +60,10 @@ def prepare_data(
 
     """
     songs = util.prepare_songs(
-        songs, transform_words=transform_words, max_repeats=max_repeats
+        songs,
+        transform_words=transform_words,
+        max_repeats=max_repeats,
+        profanity_censor=profanity_censor,
     )
     tokenizer = util.prepare_tokenizer(songs, char_level=char_level)
 
@@ -148,6 +151,8 @@ def prepare_data(
     if use_strings:
         X = tokenizer.sequences_to_texts(X)
 
+    print(f"Total number of samples: {len(X)}")
+
     return X, y, seq_length, num_words, tokenizer
 
 
@@ -215,13 +220,26 @@ def create_transformer_model(
     trainable=True,
 ):
     inp = tf.keras.layers.Input(shape=[], dtype=tf.string)
-    x = hub.KerasLayer(
-        "https://tfhub.dev/google/universal-sentence-encoder/4",
-        trainable=trainable,
-        input_shape=[],
-        dtype=tf.string,
-    )(inp)
-    x = tf.keras.layers.Dense(64, activation="relu")(x)
+
+    if transformer_network == "use":
+        x = hub.KerasLayer(
+            "https://tfhub.dev/google/universal-sentence-encoder/4",
+            trainable=trainable,
+            input_shape=[],
+            dtype=tf.string,
+        )(inp)
+        x = tf.keras.layers.Dense(64, activation="relu")(x)
+    elif transformer_network == "bert":
+        # XXX: This is the smallest possible bert encoder. We can't expect wonders.
+        x = hub.KerasLayer("https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3")(
+            inp
+        )
+        outputs = hub.KerasLayer(
+            "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-2_H-128_A-2/2",
+            trainable=trainable,
+        )(x)
+        x = outputs["pooled_output"]
+        x = tf.keras.layers.Dropout(0.1)(x)
 
     # The + 1 accounts for the OOV token which can sometimes be present as the target word
     outp = tf.keras.layers.Dense(num_words + 1, activation="softmax")(x)
@@ -255,7 +273,8 @@ def train(
     save_freq=config.SAVE_FREQUENCY,
     max_repeats=config.MAX_REPEATS,
     char_level=False,
-    early_stopping_patience=config.EARLY_STOPPING_PATIENCE
+    early_stopping_patience=config.EARLY_STOPPING_PATIENCE,
+    profanity_censor=False,
 ):
     if export_dir is None:
         export_dir = "./export/{}".format(
@@ -274,6 +293,7 @@ def train(
         num_lines_to_include=num_lines_to_include,
         max_repeats=max_repeats,
         char_level=char_level,
+        profanity_censor=profanity_censor,
     )
     util.pickle_tokenizer(tokenizer, export_dir)
 
@@ -284,8 +304,8 @@ def train(
         model = create_transformer_model(
             num_words, transformer_network, trainable=not embedding_not_trainable
         )
-        # Transformer networks are slow to save, let's just save it every epoch.
-        save_freq = "epoch"
+        # Some transformer networks are slow to save, let's just save it every epoch.
+        save_freq = "epoch" if transformer_network == "use" else save_freq
     else:
         embedding_matrix = None
         # Don't use word embeddings on char-level training.
@@ -322,7 +342,10 @@ def train(
         epochs=max_epochs,
         callbacks=[
             tf.keras.callbacks.EarlyStopping(
-                monitor="loss", patience=early_stopping_patience, verbose=1, min_delta=0.001
+                monitor="loss",
+                patience=early_stopping_patience,
+                verbose=1,
+                min_delta=0.001,
             ),
             tf.keras.callbacks.ModelCheckpoint(
                 "{}/model.h5".format(export_dir),
@@ -390,7 +413,7 @@ if __name__ == "__main__":
             Use a transformer architecture like the universal sentence encoder
             rather than a recurrent neural network.
         """,
-        choices=["use"],
+        choices=["use", "bert"],
     )
     parser.add_argument(
         "--num-lines-to-include",
@@ -478,6 +501,14 @@ if __name__ == "__main__":
         Default is {config.EARLY_STOPPING_PATIENCE}
         """,
     )
+    parser.add_argument(
+        "--profanity-censor",
+        action="store_true",
+        help=f"""Replace certain words with **** during preprocessing training.
+        This eliminates some of the bad words that artists might use. This can
+        be useful for presentations :-)
+        """,
+    )
     args = parser.parse_args()
     artists = args.artists if args.artists != ["*"] else []
     train(
@@ -496,5 +527,6 @@ if __name__ == "__main__":
         max_repeats=args.max_repeats,
         save_freq=args.save_freq,
         char_level=args.char_level,
-        early_stopping_patience=args.early_stopping_patience
+        early_stopping_patience=args.early_stopping_patience,
+        profanity_censor=args.profanity_censor,
     )
