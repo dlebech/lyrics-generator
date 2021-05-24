@@ -22,6 +22,7 @@ def prepare_data(
     max_repeats=config.MAX_REPEATS,
     char_level=False,
     profanity_censor=False,
+    max_num_words=config.MAX_NUM_WORDS,
 ):
     """Prepare songs for training, including tokenizing and word preprocessing.
 
@@ -65,9 +66,11 @@ def prepare_data(
         max_repeats=max_repeats,
         profanity_censor=profanity_censor,
     )
-    tokenizer = util.prepare_tokenizer(songs, char_level=char_level)
+    tokenizer = util.prepare_tokenizer(
+        songs, char_level=char_level, num_words=max_num_words
+    )
 
-    num_words = min(config.MAX_NUM_WORDS, len(tokenizer.word_index))
+    num_words = min(max_num_words, len(tokenizer.word_index))
 
     print("Encoding all songs to integer sequences")
     if use_full_sentences:
@@ -275,6 +278,7 @@ def train(
     char_level=False,
     early_stopping_patience=config.EARLY_STOPPING_PATIENCE,
     profanity_censor=False,
+    max_num_words=config.MAX_NUM_WORDS,
 ):
     if export_dir is None:
         export_dir = "./export/{}".format(
@@ -294,6 +298,7 @@ def train(
         max_repeats=max_repeats,
         char_level=char_level,
         profanity_censor=profanity_censor,
+        max_num_words=max_num_words,
     )
     util.pickle_tokenizer(tokenizer, export_dir)
 
@@ -509,6 +514,13 @@ if __name__ == "__main__":
         be useful for presentations :-)
         """,
     )
+    parser.add_argument(
+        "--max-num-words",
+        type=int,
+        default=config.MAX_NUM_WORDS,
+        help=f"""Maximum number of words to include in the output. Default is
+        {config.MAX_NUM_WORDS}""",
+    )
     args = parser.parse_args()
     artists = args.artists if args.artists != ["*"] else []
     train(
@@ -529,4 +541,5 @@ if __name__ == "__main__":
         char_level=args.char_level,
         early_stopping_patience=args.early_stopping_patience,
         profanity_censor=args.profanity_censor,
+        max_num_words=args.max_num_words,
     )
