@@ -104,3 +104,49 @@ def gru_rnn_loop(batch, gru: tf.keras.layers.GRU):
 
 # The final output should correspond to the output of the GRU layer.
 gru_rnn_loop(batch, gru)
+
+# %%
+lstm = tf.keras.layers.LSTM(2, use_bias=False)
+res = lstm(batch)
+print(f"LSTM kernel: {lstm.weights[0]}")
+print(f"LSTM recurrent kernel: {lstm.weights[1]}")
+print()
+print(f"LSTM output: {res}")
+
+# %%
+def lstm_rnn_loop(batch, lstm: tf.keras.layers.GRU):
+    # Code is inspired by the LSTMCell call():
+    # https://github.com/tensorflow/tensorflow/blob/a4dfb8d1a71385bd6d122e4f27f86dcebb96712d/tensorflow/python/keras/layers/recurrent.py#L2414-L2472
+
+    # Previous and carry states
+    h, c = lstm.get_initial_state(batch)
+    kernel = lstm.weights[0]
+    recurrent_kernel = lstm.weights[1]
+
+    for timestep in range(batch.shape[1]):
+        inp = batch[:, timestep, :]
+
+        z = tf.keras.backend.dot(inp, kernel)
+        z += tf.keras.backend.dot(h, recurrent_kernel)
+
+        z = tf.split(z, num_or_size_splits=4, axis=1)
+
+        z0, z1, z2, z3 = z
+        i = lstm.recurrent_activation(z0)
+        f = lstm.recurrent_activation(z1)
+        c = f * c + i * lstm.activation(z2)
+        o = lstm.recurrent_activation(z3)
+
+        h = o * lstm.activation(c)
+        o = h
+
+        print(f"Input timestep: {inp}")
+        print(f"Gates: z: {z}")
+        print(f"Next state: c: {c}, h: {h}")
+        print()
+
+    print(f"Final output: {o}")
+
+
+lstm_rnn_loop(batch, lstm)
+# %%
