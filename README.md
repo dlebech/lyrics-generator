@@ -7,7 +7,11 @@ This is a small experiment in generating lyrics with a recurrent neural network,
 
 It works in the browser with Tensorflow.js! Try it [here](https://davidlebech.com/lyrics/).
 
-The model can be trained at both word- and character level which each has their own pros and cons.
+The model can be trained at both word- and character level which each have their own pros and cons.
+
+## Pre-trained models
+
+A few pre-trained models can be found [here](https://drive.google.com/drive/folders/12iK2a2H85lOUvnyl6pkOz9zYEKHlSuyj?usp=sharing).
 
 ## Train the model
 
