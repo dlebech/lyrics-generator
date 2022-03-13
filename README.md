@@ -17,6 +17,8 @@ A few pre-trained models can be found [here](https://drive.google.com/drive/fold
 
 ### Install dependencies
 
+Requires Python 3.7+.
+
 ```shell
 pip install -r requirements.txt
 ```
