@@ -5,7 +5,6 @@ import os
 import statistics
 
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text
@@ -287,7 +286,9 @@ def train(
         os.makedirs(export_dir, exist_ok=True)
 
     songs = util.load_songdata(songdata_file=songdata_file, artists=artists)
-    print(f"Will use {len(songs)} songs from {len(artists)} artists")
+    print(
+        f"Will use {len(songs)} songs from {len(artists) if len(artists) > 0 else 'all'} artists"
+    )
 
     X, y, seq_length, num_words, tokenizer = prepare_data(
         songs,
